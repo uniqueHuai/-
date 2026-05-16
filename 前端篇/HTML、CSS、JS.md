@@ -2204,4 +2204,4 @@ for (const [key, value] of map) {
 > 学习顺序：**HTML → CSS → JavaScript**，每个都练手后再学框架（React / Vue / Svelte）。
 >
 > 上一篇：[[爬虫基础与进阶篇]]
-> 下一篇推荐：[[前端篇/Vue篇]] 或 [[前端篇/React篇]]
+> 下一篇推荐：[[Vue入门到进阶]] 或 [[React入门到进阶]]
