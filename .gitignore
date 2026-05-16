@@ -2,7 +2,10 @@
 Thumbs.db
 .DS_Store
 
-# Obsidian 工作区缓存（可选）
+# Claudian AI 助手配置与历史会话（隐私数据，不应推送）
+.claudian/
+
+# Obsidian 工作区缓存与配置（每台机器不同）
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 
