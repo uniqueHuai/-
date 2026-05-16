@@ -137,11 +137,11 @@
 
 ### 推荐插件
 
-| 插件 | 用途 |
-|:----|:-----|
-| **obsidian-git** | 自动备份到 Git |
+| 插件                             | 用途        |
+| :----------------------------- | :-------- |
+| **obsidian-git**               | 自动备份到 Git |
 | **obsidian-excalidraw-plugin** | 绘制架构图/流程图 |
-| **RealClaudian** | AI 辅助笔记编写 |
+| **RealClaudian**               | AI 辅助笔记编写 |
 
 ### 阅读建议
 
