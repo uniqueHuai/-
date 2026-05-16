@@ -4,20 +4,20 @@
   "title": "Review and optimize notes",
   "titleGenerationStatus": "success",
   "createdAt": 1778903940446,
-  "updatedAt": 1778904994196,
-  "lastResponseAt": 1778904994196,
+  "updatedAt": 1778905435049,
+  "lastResponseAt": 1778905435049,
   "sessionId": "6090f481-78bb-427b-9590-6b13ebee0b45",
   "providerState": {
     "providerSessionId": "6090f481-78bb-427b-9590-6b13ebee0b45"
   },
   "usage": {
     "model": "haiku",
-    "inputTokens": 98,
+    "inputTokens": 154,
     "cacheCreationInputTokens": 0,
-    "cacheReadInputTokens": 148352,
+    "cacheReadInputTokens": 56704,
     "contextWindow": 200000,
-    "contextTokens": 148450,
-    "percentage": 74,
+    "contextTokens": 56858,
+    "percentage": 28,
     "contextWindowIsAuthoritative": true
   }
 }
