@@ -1,0 +1,10 @@
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# Obsidian 工作区缓存（可选）
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# 插件缓存（可选，插件本身保留）
+.obsidian/plugins/*/data.json
