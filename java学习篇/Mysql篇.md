@@ -1,439 +1,696 @@
-事务
+# MySQL 篇
 
-1、事务（一组操作的集合，即整体的提交和撤销操作要么同时成功要么同时失败）
+## 一、事务
 
-2、事务特征
+### 1. 什么是事务
 
-原子性：事务是一个不可分割的工作单位，事务中的操作要么全部成功，要么全部失败回滚
+**事务**是一组操作的集合，这些操作**要么全部成功，要么全部失败回滚**。
 
-一致性：事务执行前后，数据库从一个一致状态转变为另一个一致状态
+### 2. ACID 四大特征
 
-隔离性：多个并发事务执行时，一个事务的执行不应影响其他事务的执行
+| 特征 | 说明 |
+|:----:|------|
+| **原子性（Atomicity）** | 事务不可分割，要么全成功要么全回滚——由 **undo log** 保证 |
+| **一致性（Consistency）** | 事务前后，数据库从一个一致状态到另一个一致状态 |
+| **隔离性（Isolation）** | 并发事务之间互不干扰——由 **MVCC** 和 **锁** 保证 |
+| **持久性（Durability）** | 一旦提交，修改永久保存——由 **redo log** 保证 |
 
-持久性：一旦事务提交，其所做的修改就会永久保存在数据库中，即使系统故障也不会丢失
+### 3. 事务操作
 
-3、事务操作：
+```sql
+-- 方式一：设置自动提交
+SET @@autocommit = 0;   -- 关闭自动提交
+COMMIT;                 -- 提交
+ROLLBACK;               -- 回滚
 
-①方式一
+-- 方式二：显式事务
+START TRANSACTION;
+-- SQL 操作...
+COMMIT;   -- 或 ROLLBACK;
+```
 
-查看事务：select @@autocommit;
+### 4. 并发事务问题
 
-设置事务：set @@autocommit=0; //默认是 1，自动提交
+| 问题 | 描述 |
+|:----:|------|
+| **脏读** | 一个事务读取了**另一个未提交事务**修改过的数据 |
+| **不可重复读** | 同一事务内，多次读取**同一数据**结果不同（其他事务修改并提交） |
+| **幻读** | 同一事务内，多次执行**相同查询**，结果集行数不同（其他事务插入/删除） |
 
-提交事务：commit;
+### 5. 事务隔离级别
 
-回滚事务：rollback;
+```sql
+-- 查看当前隔离级别
+SELECT @@transaction_isolation;
 
-②方式二
+-- 设置隔离级别
+SET [SESSION | GLOBAL] TRANSACTION ISOLATION LEVEL
+    {READ UNCOMMITTED | READ COMMITTED | REPEATABLE READ | SERIALIZABLE};
+```
 
-开启事务：start transaction
+| 隔离级别 | 脏读 | 不可重复读 | 幻读 |
+|:--------:|:---:|:---------:|:---:|
+| **READ UNCOMMITTED** | ❌ 可能 | ❌ 可能 | ❌ 可能 |
+| **READ COMMITTED** | ✅ 避免 | ❌ 可能 | ❌ 可能 |
+| **REPEATABLE READ**（MySQL 默认） | ✅ 避免 | ✅ 避免 | ❌ 可能（InnoDB 通过 MVCC + 间隙锁避免了） |
+| **SERIALIZABLE** | ✅ 避免 | ✅ 避免 | ✅ 避免 |
 
-提交事务：commit;
-
-回滚事务：rollback;
-
-4、并发事务问题
-
-脏读：一个事务读取了另一个未提交事务修改过的数据
-
-不可重复读：在同一个事务内，多次读取同一数据，但由于其他事务在这期间修改了该数据并已提交，导致两次读取结果不同
-
-幻读：在同一个事务内，多次执行相同的查询，但由于其他事务在这期间插入或删除了符合查询条件的行并已提交，导致两次查询结果集的行数不同
-
-5、事务隔离级别
-
-查看事务隔离级别：select @@transaction_isolation;
-
-设置事务隔离级别：set [session(当前客户端窗口)|global(所有会话窗口)] transaction isolation level {read uncommitted | read committed | repeatable read | serializable}
+> [!info] MySQL InnoDB 默认隔离级别是 **REPEATABLE READ**，并通过 **MVCC**（快照读）+ **间隙锁**（当前读）解决了幻读问题。
 
 ---
 
-存储引擎
-
-1、存储引擎（数据库存储引擎是数据库管理系统的核心组件，负责数据的存储、检索和管理）
-
-2、常见存储引擎
-
-InnoDB（mysql5.5后默认）：支持事务、行级锁定、外键
-
-MyISAM（mysql5.5之前）：不支持事务，表级锁定，适合读密集型应用
-
-Memory：所有数据存储在内存中，速度快但关机后数据丢失
-
-3、存储引擎选择考虑以下方面：
-
-事务需求、并发性能需求、数据完整性要求（约束）
-
-索引
-
-1、索引（高效的获取数据的数据结构（有序））
-
-2、索引优缺
-
-不使用索引时，数据全表扫描
-
-使用索引优：提高查询速率
-
-使用索引缺：占用空间，增删改性能降低
-
-3、索引结构
-
-B+Tree索引（InnoDB，大部分引擎支持）:
-
-①内部节点只存储键值和指向子节点的指针
-
-②叶子节点包含所有键值和对应的数据指针/记录，叶子节点通过链表连接
-
-Hash索引（Memory）：
-
-①通过哈希函数将索引键值（哈希值）映射到特定的存储位置
-
-②单次查询精确匹配使用
-
-R+Tree（MyISAM）、Full-text
-
-4、索引分类
-
-聚集索引：子节点存放主键行数据，一张表只能有一个聚集索引（主键/唯一/默认索引）
-
-二级索引：子节点存放主键值和自己字段（唯一/常规/全文索引）
-
-5、索引语法
-
-创建索引：create [unique|fulltext] index index_name on table_name (index_col_name,....);
-
-查看索引：show index from table_name;
-
-删除索引：drop index index_name on table_name;
-
-6、性能分析
-
-查看执行频率（增删改查的频率）：show global status like 'com_______';
-
-慢查询日志（sql操作执行时间超过指定时间则记录）：
-
-慢查询日志开关查看：show variables like 'show_query_log';
-
-①临时开启：
-
--- 开启慢查询日志
-
-set global slow_query_log = 'ON';
-
--- 设置慢查询阈值（单位：秒，默认10秒）
-
-set global long_query_time = 1; -- 记录执行超过1秒的查询
-
-②永远开启：
-
---编辑MySQL配置文件（通常为my.cnf或my.ini），在[mysqld]部分添加：
-
-slow_query_log = 1
-
-long_query_time = 1
-
-profile详情（查看每个sql的耗时）：
-
-查看当前数据库是否支持profile详情：select @@have_profiling;
-
-查看profile开关（默认0关，1开）：select @@profiling
-
-开启profile：set profiling = 1;
-
-查看每一条sql耗时：show profiles;
-
-查看指定query_id在阶段的耗时：show profile for query_id;
-
-查看指定query_id的cpu使用的耗时：show profile cpu for query_id;
-
-explain查看sql执行性能（执行计划）：
-
-select语句前面加上explain即可
-
-7、索引使用原则
-
-最左前缀法则：最左边列存在才会使索引
-
-范围索引：出现（<,>）时右边列索引失效，尽量用大于等于或小于等于
-
-索引列进行运算操作，索引将失效
-
-字符串不加引号，索引将失效
-
-头部模糊查询，索引失效
-
-or连接条件有一个没索引，索引都失效
-
-MySQL评估使用索引比全表更慢，则不使用索引
-
-8、sql提示（优化数据库的一个重要手段）
-
-表中字段有多个索引，会自动选择最优索引
-
-优化方法：
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753325068269-cc3f2206-1789-4834-9142-4b5bea3af420.png)
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753325084270-69b739da-136f-43cd-984b-f01881a29224.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753325099669-79d1d39d-fa3b-49a7-ad5f-d349d3493daa.png)
-
-9、覆盖索引
-
-覆盖索引是指一个索引包含了查询所需的所有字段，使得查询可以只通过索引就能获取全部所需数据，而无需回表查询数据行
-
-三种情况：（一二为覆盖索引）
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753326019506-3007877c-01a7-438d-adf4-bbc9fbaa9d51.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753326060592-1c5e58fb-adb1-4dbc-ab34-cc7e4621fa94.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753326077480-21eb5cf6-6f00-46a5-ad30-7c20ed5d4ed0.png)
-
-10、前缀索引
-
-字段类型为字符串（varchar，text，longtext等）时，有时候需要索引很长的字符串，这会让
-
-索引变得很大，查询时，浪费大量的磁盘IO， 影响查询效率。此时可以只将字符串的一部分前缀，建
-
-立索引，这样可以大大节约索引空间，从而提高索引效率。![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753326306842-26e4a182-5b0f-450d-b86f-d24e2cf28e10.png)
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753328962289-f9f73503-0a69-4fdd-9e65-a03535c2ab72.png)
-
-11、索引设计原则
-
-1). 针对于数据量较大，且查询比较频繁的表建立索引。
-
-2). 针对于常作为查询条件（where）、排序（order by）、分组（group by）操作的字段建立索
-
-引。
-
-3). 尽量选择区分度高的列作为索引，尽量建立唯一索引，区分度越高，使用索引的效率越高。
-
-4). 如果是字符串类型的字段，字段的长度较长，可以针对于字段的特点，建立前缀索引。
-
-5). 尽量使用联合索引，减少单列索引，查询时，联合索引很多时候可以覆盖索引，节省存储空间，
-
-避免回表，提高查询效率。
-
-6). 要控制索引的数量，索引并不是多多益善，索引越多，维护索引结构的代价也就越大，会影响增
-
-删改的效率。
-
-create unique index idx_user_phone_name on tb_user(phone,name); 1
-
-7). 如果索引列不能存储NULL值，请在创建表时使用NOT NULL约束它。当优化器知道每列是否包含
-
-NULL值时，它可以更好地确定哪个索引最有效地用于查询。
+## 二、MySQL 三大日志（高频重点）
+
+MySQL 有三大核心日志：**redo log**、**undo log**、**binlog**，分别服务于不同的目的。
+
+### 1. redo log（重做日志）
+
+| 属性 | 说明 |
+|:----:|------|
+| **所属引擎** | InnoDB 特有 |
+| **存储内容** | 数据页的**物理修改**（如"将页号 10 的偏移量 100 处的值改为 xxx"） |
+| **作用** | 保证事务的**持久性**（Durability） |
+| **写入时机** | 事务提交时写入（**WAL 机制**：先写日志，后写磁盘） |
+| **文件** | `ib_logfile0`、`ib_logfile1`（循环写，固定大小） |
+
+> [!tip] **WAL（Write-Ahead Logging）**：修改数据页之前，先把 redo log 写入磁盘。这样即使宕机，重启后可以通过 redo log **重放**恢复数据。
+
+### 2. undo log（回滚日志）
+
+| 属性 | 说明 |
+|:----:|------|
+| **所属引擎** | InnoDB 特有 |
+| **存储内容** | 数据**修改前的值**（逻辑日志，记录逆操作） |
+| **作用** | 保证事务的**原子性**（回滚）+ 实现 **MVCC** |
+| **写入时机** | 事务执行过程中，每修改一行就生成一条 undo log |
+| **清理** | 事务提交后，undo log 不再用于回滚，但 MVCC 可能需要旧版本，由 **purge 线程** 清理 |
+
+### 3. binlog（二进制日志）⭐
+
+| 属性 | 说明 |
+|:----:|------|
+| **所属引擎** | **MySQL Server 层**（所有引擎共享） |
+| **存储内容** | SQL 语句或行变更的逻辑日志 |
+| **作用** | ① **主从复制** ② **数据恢复**（全量+增量） ③ 审计 |
+| **写入时机** | 事务**提交时**写入，一次事务一个完整记录 |
+| **文件** | `mysql-bin.000001`、`mysql-bin.000002`……（可配置自动滚动） |
+
+#### binlog 三种格式
+
+| 格式 | 说明 | 优点 | 缺点 |
+|:----:|------|:----:|:----:|
+| **STATEMENT** | 记录原始 **SQL 语句** | 日志量小 | 非确定性函数（NOW()）可能导致主从不一致 |
+| **ROW**（**5.7+ 默认**） | 记录每一行**具体变更** | 最精确，主从一致 | 日志量大 |
+| **MIXED** | MySQL 自动判断混合使用 | 兼顾两者 | 复杂场景仍可能异常 |
+
+```sql
+-- 查看 binlog 格式
+SHOW VARIABLES LIKE 'binlog_format';
+```
+
+#### binlog 常用操作
+
+```sql
+-- 查看 binlog 是否开启
+SHOW VARIABLES LIKE 'log_bin';
+
+-- 查看当前写入的 binlog 文件
+SHOW MASTER STATUS;
+
+-- 查看 binlog 列表
+SHOW BINARY LOGS;
+
+-- 查看 binlog 内容（ROW 格式需用 mysqlbinlog 工具）
+SHOW BINLOG EVENTS IN 'mysql-bin.000001' LIMIT 10;
+```
+
+### 4. redo log vs binlog 对比
+
+> [!info] **面试高频题：redo log 和 binlog 的区别？**
+
+| 对比维度 | redo log | binlog |
+|:--------:|:---------:|:------:|
+| **所属层级** | **InnoDB 引擎层** | **MySQL Server 层** |
+| **日志类型** | **物理日志**（数据页修改） | **逻辑日志**（SQL / 行变更） |
+| **写入方式** | 循环写，固定大小 | 追加写，滚动增长 |
+| **用途** | 崩溃恢复、保证持久性 | 主从复制、数据恢复 |
+| **写入时机** | 事务执行过程中就写入 | 事务提交时才写入 |
+| **记录内容** | "数据页变成什么样" | "执行了什么操作" |
 
 ---
 
-SQL优化
+## 三、两阶段提交（2PC — 保证 redo log 与 binlog 一致）
 
-1、插入数据
+> [!info] **为什么需要两阶段提交？**
+> redo log 和 binlog 是两个独立的日志。如果写完 redo log 后、写 binlog 前宕机，主从复制就会不一致。**两阶段提交（2PC）** 保证了它们的**逻辑一致性**。
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753336933077-bce95008-9ee8-441b-80ba-dc601fb6cb0d.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753336945476-62ca02b4-ab6f-42f5-9d2e-06cb71985951.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753336955694-529b7a4f-14ca-4af9-a493-8f8cc717a7d6.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753336965222-327e2d18-68b6-46a6-b711-3bf128e6820e.png)
+### 执行流程
 
-当插入大批量数据时（百万级别）：
+```
+事务提交
+   │
+   ├── ① Prepare 阶段
+   │      └── 写入 redo log，状态设为 prepare
+   │
+   ├── ② Commit 阶段
+   │      ├── 写入 binlog
+   │      └── 将 redo log 状态设为 commit（真正提交）
+   │
+   ▼
+事务完成
+```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753337709054-8b7637a4-134f-4e6a-9bda-524a87475266.png)
+**异常场景分析**：
 
-2、主键优化
+| 宕机时刻 | redo log | binlog | 恢复后行为 |
+|:---------:|:--------:|:------:|:-----------|
+| ① 之前 | 未写 | 未写 | 事务丢失，正常 |
+| ①→② 之间 | prepare | 未写 | **回滚事务**（binlog 未写，从库会丢数据） |
+| ② 之后 | commit | 已写 | **提交事务**（两者一致） |
 
-了解：数据组织方式、页分裂、页合并
-
-设计原则：
-
-满足业务需求的情况下，尽量降低主键的长度。
-
-插入数据时，尽量选择顺序插入，选择使用AUTO_INCREMENT自增主键。
-
-尽量不要使用UUID做主键或者是其他自然主键，如身份证号。
-
-业务操作时，避免对主键的修改。
-
-3、group by优化
-
-在分组操作中，我们需要通过以下两点进行优化，以提升性能：
-
-在分组操作时，可以通过索引来提高效率。
-
-分组操作时，索引的使用也是满足最左前缀法则的。
-
-4、limit优化
-
-在数据量比较大时，如果进行limit分页查询，在查询时，越往后，分页查询效率越低。
-
-优化思路: 一般分页查询时，通过创建、覆盖索引能够比较好地提高性能，通过覆盖索引加子查询形式进行优化
-
-5、count优化
-
-如果数据量很大，在执行count操作时，是非常耗时的
-
-按照效率排序的话，count(字段) < count(主键 id) < count(1) ≈ count(*)，所以尽量使用 count(*)。
-
-6、update优化
-
-InnoDB的行锁是针对索引加的锁，不是针对记录加的锁 ,并且该索引不能失效，否则会从行锁升级为表锁
+> [!tip] **一句话总结**：两阶段提交保证了 **redo log 和 binlog 状态一致**，无论何时宕机，恢复后两者都能对上。
 
 ---
 
-视图/存储过程/触发器
+## 四、存储引擎
 
-1、视图
+### 1. 常见存储引擎对比
 
-是一种虚拟存在的表。视图中的数据并不在数据库中实际存在，行和列数据来自定义视图的查询中使用的表，并且是在使用视图时动态生成的。所以我们在创建视图的时候，主要的工作就落在创建这条SQL查询语句上。
+| 引擎 | 事务 | 锁级别 | 外键 | 特点 |
+|:----:|:----:|:------:|:----:|------|
+| **InnoDB**（默认） | ✅ | 行锁 | ✅ | 支持事务、高并发 |
+| **MyISAM** | ❌ | 表锁 | ❌ | 读密集型，性能好 |
+| **Memory** | ❌ | 表锁 | ❌ | 内存表，速度快，重启数据丢失 |
+| **Archive** | ❌ | 行锁 | ❌ | 高压缩比，只支持 INSERT 和 SELECT |
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753346257232-60b2adeb-59cb-4a0c-8acf-7470e83f3910.png)
+### 2. InnoDB vs MyISAM 适用场景
 
-2、视图的作用
-
-1). 简单
-
-视图不仅可以简化用户对数据的理解，也可以简化他们的操作。那些被经常使用的查询可以被定义为视图，从而使得用户不必为以后的操作每次指定全部的条件。
-
-2). 安全
-
-数据库可以授权，但不能授权到数据库特定行和特定的列上。通过视图用户只能查询和修改他们所能见到的数据
-
-3). 数据独立
-
-视图可帮助用户屏蔽真实表结构变化带来的影响。
-
-3、存储过程（数据库 SQL 语言层面的代码封装与重用）
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753368900544-6ead3e8a-d8f7-46c0-b8ed-e4c171444666.png)
-
-系统变量
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753369031072-d831a69e-7a7d-44c3-a579-cdfc7ebdf679.png)
-
-用户变量
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753369075197-0f55b004-fe8f-44ae-9153-a2d6af1afcb8.png)
-
-局部变量
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753369107834-d5426262-3956-4d3b-bb08-76d966419af7.png)
-
-关键字
-
-if、in、out、inout、case、while、repeat、loop、游标（cursor）、条件处理程序
-
-4、触发器
-
-创建表的同时也要创建好日志表（日志表记录触发器触发的信息）
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753369974510-52416bf1-7c87-4cde-bfc7-65bacd25bafc.png)
+| 场景 | 推荐引擎 |
+|:----|:---------|
+| 需要事务、高并发写入 | **InnoDB** |
+| 大量 SELECT、读多写少 | MyISAM（或 InnoDB） |
+| 需要外键约束 | **InnoDB** |
+| 日志/归档数据 | Archive |
 
 ---
 
-锁
+## 五、索引
 
-1、全局锁（锁定数据库中的所有表）
+### 1. 概念
 
-加了全局锁之后，其他的DDL、DML全部都处于阻塞状态，但是可以执行DQL语句，也就是处于只读状态，而数据备份就是查询操作，就保证了数据的一致性和完整性。
+**索引**是一种高效获取数据的**数据结构**（有序），能极大提高查询效率。
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753370392105-43de04af-26c6-4760-91e4-dc995750612f.png)
+### 2. 优点与缺点
 
-2、表级锁（每次操作锁住整张表）
+| 优点 | 缺点 |
+|:----|:----|
+| ✅ 提高查询速度 | ❌ 占用额外存储空间 |
+| ✅ 提高排序效率 | ❌ 增删改操作性能降低 |
 
-表锁
+### 3. 索引结构
 
-读锁不会阻塞其他客户端的读，但是会阻塞写。写锁既会阻塞其他客户端的读，又会阻塞其他客户端的写
+| 结构 | 支持的引擎 | 说明 |
+|:----:|:----------:|------|
+| **B+Tree**（主流） | InnoDB、MyISAM 等 | 内部节点存键值+指针，**叶子节点存数据 + 链表连接** |
+| **Hash** | Memory | 精确匹配快，不支持范围查询 |
+| **R-Tree** | MyISAM | 空间索引 |
+| **Full-text** | MyISAM、InnoDB | 全文索引 |
 
-元数据锁
+> [!info] **B+Tree 特点**
+> - 非叶子节点只存储键值和指针（不存数据），树更矮更宽
+> - 叶子节点通过**链表**相连，支持范围查询
+> - 查询稳定（每次都要到叶子节点，I/O 次数固定）
 
-某一张表涉及到未提交的事务时，是不能够修改这张表的表结构的
+### 4. 索引分类
 
-意向锁
+| 类型 | 说明 |
+|:----:|------|
+| **聚集索引（Clustered）** | 叶子节点存放**整行数据**，一张表**只有一个**（主键 / 唯一 / 默认） |
+| **二级索引（Secondary）** | 叶子节点存放**主键值**，找到主键后**回表**查询数据 |
 
-意向锁是表级锁与行级锁之间的协调机制
+> [!info] **回表**：通过二级索引找到主键值，再通过聚集索引找到整行数据的过程。
 
-3、行级锁（每次操作锁住对应的行数据）
+### 5. 索引语法
 
-行级锁，每次操作锁住对应的行数据
+```sql
+-- 创建索引
+CREATE [UNIQUE | FULLTEXT] INDEX index_name ON table_name (col1, col2, ...);
 
-行锁（Record Lock）：锁定单个行记录的锁，防止其他事务对此行进行update和delete
+-- 查看索引
+SHOW INDEX FROM table_name;
 
-间隙锁（Gap Lock）：锁定索引记录间隙（不含该记录），确保索引记录间隙不变，防止其他事务在这个间隙进行insert，产生幻读
+-- 删除索引
+DROP INDEX index_name ON table_name;
+```
 
-临键锁（Next-Key Lock）：行锁和间隙锁组合，同时锁住数据，并锁住数据前面的间隙Gap
+### 6. 性能分析工具
+
+```sql
+-- ① 查看 SQL 执行频率（增删改查）
+SHOW GLOBAL STATUS LIKE 'Com_______';
+
+-- ② 慢查询日志（记录超过指定时间的 SQL）
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 1;   -- 超过 1 秒
+
+-- ③ Profile 详情
+SELECT @@profiling;               -- 查看 profile 开关
+SET profiling = 1;                -- 开启
+SHOW PROFILES;                    -- 查看每条 SQL 耗时
+SHOW PROFILE FOR QUERY query_id;  -- 查看阶段耗时
+
+-- ④ Explain 执行计划（⭐ 基础用法）
+EXPLAIN SELECT * FROM user WHERE id = 1;
+```
+
+#### Explain 详解
+
+| 字段 | 说明 | 重点关注值 |
+|:----:|------|:----------:|
+| **`type`** | 访问类型（性能从好到差） | `const` > `eq_ref` > `ref` > `range` > `index` > **`ALL`（全表扫描 ❌）** |
+| **`key`** | 实际使用的索引 | 为 NULL 则未使用索引 |
+| **`rows`** | 预估扫描行数 | **越小越好** |
+| **`Extra`** | 额外信息 | `Using index`（✅ 覆盖索引）、`Using filesort`（❌ 需优化）、`Using temporary`（❌ 需优化）、`Using index condition`（ICP 优化） |
+
+```sql
+-- 示例：查看是否有 Using filesort
+EXPLAIN SELECT * FROM user WHERE age > 18 ORDER BY name;
+-- Extra: Using where; Using filesort  ← 需要优化！
+```
+
+### 7. 索引使用原则（索引失效场景）
+
+| 原则 / 场景 | 说明 |
+|:-----------:|------|
+| **最左前缀法则** | 联合索引最左边列必须存在 |
+| **范围索引** | `>` / `<` 右边列索引失效，尽量用 `>=` / `<=` |
+| **索引列运算** | 对索引列做运算 → 失效 |
+| **字符串不加引号** | 类型转换 → 失效 |
+| **头部模糊查询** | `LIKE '%xxx'` → 失效；`LIKE 'xxx%'` → 有效 |
+| **OR 条件** | 有一个列没索引 → 索引全失效 |
+| **MySQL 评估** | 优化器认为全表更快 → 不走索引 |
+
+### 8. SQL 提示
+
+```sql
+SELECT * FROM table USE INDEX(idx_name) WHERE ...;      -- 建议使用
+SELECT * FROM table FORCE INDEX(idx_name) WHERE ...;     -- 强制使用
+SELECT * FROM table IGNORE INDEX(idx_name) WHERE ...;    -- 忽略
+```
+
+### 9. 覆盖索引
+
+> [!info] **覆盖索引**：查询所需的**所有字段都在索引中**，无需回表查询行数据。
+> 表现：`Extra` 字段出现 `Using index`。
+
+```sql
+-- 假设有联合索引 (name, age)
+-- ✅ 覆盖索引：Extra 为 Using index
+SELECT name, age FROM user WHERE name = 'Alice';
+
+-- ❌ 需要回表：Extra 为 NULL 或 Using index condition
+SELECT name, age, phone FROM user WHERE name = 'Alice';
+```
+
+### 10. 前缀索引
+
+对字符串字段的**前 N 个字符**建立索引，节省空间：
+
+```sql
+CREATE INDEX idx_email_prefix ON user(email(10));
+```
+
+### 11. 索引设计原则
+
+1. ⭐ 数据量大 + 查询频繁的表建立索引
+2. ⭐ 常用作 `WHERE` / `ORDER BY` / `GROUP BY` 的字段建立索引
+3. 尽量选择**区分度高**的列（唯一索引优先）
+4. 长字符串用**前缀索引**
+5. 尽量使用**联合索引**（覆盖索引，避免回表）
+6. **控制索引数量**，索引越多，增删改越慢
+7. 索引列用 `NOT NULL` 约束，优化器决策更准确
 
 ---
 
-InnoDB引擎
+## 六、SQL 优化
 
-1、逻辑存储结构
+### 1. 批量插入
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753410508216-02dc92bd-59cb-40cb-9199-2ed0117593a8.png)
+```sql
+-- 批量插入（一条语句）
+INSERT INTO tb VALUES (1,'a'), (2,'b'), (3,'c');
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753410525957-9a42c0c1-725c-4d3a-9bc0-a1422922c38d.png)
+-- 手动开启事务
+START TRANSACTION;
+INSERT INTO tb VALUES ...;
+INSERT INTO tb VALUES ...;
+COMMIT;
 
-2、架构
+-- 主键顺序插入（效率高于乱序插入）
+```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753411296533-043932ad-32b1-446e-944a-89585208bdf6.png)
+> [!tip] **百万级数据插入**：使用 MySQL 的 `LOAD DATA LOCAL INFILE` 命令
 
-内存结构
+### 2. 主键优化
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753411285196-d959d7d1-2a8b-448b-83b5-eed20031e9b1.png)
+| 原则 | 说明 |
+|:----:|------|
+| **降低长度** | 主键越短越好 |
+| **顺序插入** | 使用 `AUTO_INCREMENT` 自增主键 |
+| **避免 UUID** | UUID 是随机长字符串，会频繁触发**页分裂** |
+| **避免修改** | 主键尽量不要 `UPDATE` |
 
-Buffer Pool（缓冲池）
+> [!info] **页分裂与页合并**
+> B+Tree 数据页满时 → 页分裂（插入新页，影响性能）；数据页空闲过多 → 页合并
 
-缓冲池以Page页为单位，底层采用链表数据结构管理Page。根据状态，将Page分为三种类型：
+### 3. GROUP BY 优化
 
-• free page：空闲page，未被使用。
+- 对分组字段建立索引
+- 满足**最左前缀法则**
 
-• clean page：被使用page，数据没有被修改过。
+### 4. LIMIT 优化
 
-• dirty page：脏页，被使用page，数据被修改过，也中数据与磁盘的数据产生了不一致。
+大数据分页时，越往后越慢。优化思路：**覆盖索引 + 子查询**
 
-Change Buffer（更改缓冲池）
+```sql
+-- 优化前：LIMIT 1000000, 10 跳过大量行
+-- 优化后：通过覆盖索引先获取主键
+SELECT * FROM tb t
+JOIN (SELECT id FROM tb ORDER BY id LIMIT 1000000, 10) tmp
+ON t.id = tmp.id;
+```
 
-相对随机的顺序插入二级索引，有了ChangeBuffer之后，我们可以在缓冲池中进行合并处理，减少磁盘IO
+### 5. COUNT 优化
 
-Adaptive Hash Index
+```sql
+-- 效率排序（从慢到快）
+COUNT(字段) < COUNT(主键 id) < COUNT(1) ≈ COUNT(*)  -- 尽量用 COUNT(*)
+```
 
-在特定的条件下hash索引可以提升速度，则建立hash索引，称之为自适应hash索引
+### 6. UPDATE 优化
 
-Log Buffer（日志缓冲区）
+> [!warning] **InnoDB 行锁是针对索引加的锁！**
+> 如果 UPDATE 的 `WHERE` 条件没有走索引，**行锁会升级为表锁**，严重影响并发性能。
 
-磁盘结构
+```sql
+-- ✅ 走索引：行锁
+UPDATE user SET name = 'Alice' WHERE id = 1;
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753411261169-baf1ee9b-0365-4ef6-ad73-82529714e0f6.png)
-
-后台线程
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753411340071-e623f16a-b4e1-418c-a3ab-a4cbe6871606.png)
-
-3、事务原理
-
-redo log：重做日志，记录的是事务提交时数据页的物理修改，是用来实现事务的持久性。
-
-undo log：回滚日志，用于记录数据被修改前的信息 , 作用包含两个 : 提供回滚(保证事务的原子性) 和MVCC(多版本并发控制)。
-
-4、MVCC
-
-MVCC是一种"无锁并发控制"机制，它通过在数据修改时保留数据的多个版本，使得：
-
-读操作不需要等待写操作完成
-
-写操作不需要等待读操作完成
-
-读操作不会阻塞写操作
-
-优点：
-
-✅ 读写不互相阻塞，提高并发性能
-
-✅ 减少死锁可能性
-
-✅ 实现非锁定一致性读
-
-缺点：
-
-❌ 需要额外存储空间保存多个版本
-
-❌ 需要定期清理过期版本（如MySQL的purge操作）
-
-❌ 写冲突时仍可能回滚
+-- ❌ 不走索引：表锁（全表扫描，锁全表）
+UPDATE user SET name = 'Alice' WHERE name = 'Bob';
+```
 
 ---
 
-MySQL管理
+## 七、视图 / 存储过程 / 触发器
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753411788323-805fcc0a-b856-421a-a4d9-6bd0e76b4c7f.png)
+### 1. 视图（View）
+
+**虚拟表**，数据不真实存在，使用时动态生成：
+
+```sql
+CREATE VIEW view_name AS SELECT ...;
+```
+
+**作用**：
+- **简单**：封装复杂查询
+- **安全**：只暴露部分数据给用户
+- **数据独立**：屏蔽底层表结构变化
+
+### 2. 存储过程（Stored Procedure）
+
+SQL 层面的**代码封装与重用**：
+
+```sql
+DELIMITER //
+CREATE PROCEDURE proc_name(IN param INT, OUT result INT)
+BEGIN
+    -- 业务逻辑
+    SELECT COUNT(*) INTO result FROM tb WHERE col = param;
+END //
+DELIMITER ;
+
+CALL proc_name(100, @result);
+SELECT @result;
+```
+
+**变量类型**：
+
+| 类型 | 作用域 | 说明 |
+|:----:|:------:|------|
+| **系统变量** | 全局/会话 | MySQL 服务器配置 |
+| **用户变量** | 当前会话 | `@var` |
+| **局部变量** | 当前存储过程 | `DECLARE var INT` |
+
+**关键字**：`IF`、`CASE`、`WHILE`、`REPEAT`、`LOOP`、`CURSOR`（游标）
+
+### 3. 触发器（Trigger）
+
+当某张表执行 INSERT / UPDATE / DELETE 时自动触发：
+
+```sql
+CREATE TRIGGER trigger_name
+AFTER INSERT ON tb FOR EACH ROW
+BEGIN
+    -- 插入日志表
+END;
+```
+
+---
+
+## 八、锁
+
+### 1. 全局锁
+
+```sql
+FLUSH TABLES WITH READ LOCK;  -- 加全局锁（只读）
+```
+
+> 加了全局锁后，其他所有 DDL / DML 操作阻塞，保证数据备份的一致性。**生产环境推荐使用 `mysqldump --single-transaction`**（InnoDB 可用事务快照，无需加锁）。
+
+### 2. 表级锁
+
+| 类型 | 说明 |
+|:----:|------|
+| **表锁** | 读锁不阻塞读，阻塞写；写锁既阻塞读也阻塞写 |
+| **元数据锁（MDL）** | 防止 DDL 和 DML 冲突（自动管理） |
+| **意向锁** | 表级锁和行级锁的**协调机制**，快速判断表中是否有行锁 |
+
+### 3. 行级锁（InnoDB）
+
+| 类型 | 说明 |
+|:----:|------|
+| **行锁（Record Lock）** | 锁定**单条记录**，防止其他事务 UPDATE / DELETE |
+| **间隙锁（Gap Lock）** | 锁定**索引记录之间的间隙**，防止 INSERT 产生幻读 |
+| **临键锁（Next-Key Lock）** | **行锁 + 间隙锁**，InnoDB 默认行锁策略，解决幻读 |
+
+> [!warning] **间隙锁只在 REPEATABLE READ 级别生效**。READ COMMITTED 级别下间隙锁会失效，这也是 RC 级别有幻读的原因之一。
+
+---
+
+## 九、InnoDB 引擎
+
+### 1. 逻辑存储结构
+
+```
+表空间（Tablespace） → 段（Segment） → 区（Extent，1MB） → 页（Page，16KB） → 行（Row）
+```
+
+### 2. 内存结构
+
+| 组件 | 说明 |
+|:----:|------|
+| **Buffer Pool** | 缓冲池，缓存数据页和索引页（分为 free / clean / dirty page） |
+| **Change Buffer** | 变更缓冲，合并**随机**二级索引写入，减少磁盘 IO |
+| **Adaptive Hash Index** | 自适应哈希索引，对热数据自动建立 Hash 索引 |
+| **Log Buffer** | 日志缓冲区，保存要写入磁盘的日志 |
+
+### 3. MVCC（多版本并发控制）
+
+> [!info] MVCC 是一种**无锁并发控制**机制，通过保留数据的**多个版本**实现：
+> - 读操作**不等待**写操作
+> - 写操作**不阻塞**读操作
+
+#### 核心组成
+
+| 组件 | 说明 |
+|:----:|------|
+| **隐藏字段** | 每行有 `DB_TRX_ID`（最近修改事务 ID）、`DB_ROLL_PTR`（回滚指针指向 undo log） |
+| **undo log 版本链** | 通过回滚指针串联旧版本，形成版本链 |
+| **ReadView** | 事务执行快照读时生成，决定当前事务能看到哪些版本 |
+
+#### ReadView 可见性规则
+
+```
+creator_trx_id：当前事务 ID
+m_ids：活跃事务 ID 列表
+min_trx_id：m_ids 最小值
+max_trx_id：下一个要分配的事务 ID
+
+判断规则：
+① 版本 trx_id = creator_trx_id → 自己修改的，可见 ✅
+② 版本 trx_id < min_trx_id → 已提交事务，可见 ✅
+③ 版本 trx_id ≥ max_trx_id → 未来事务，不可见 ❌
+④ min_trx_id ≤ trx_id ≤ max_trx_id → 在 m_ids 中则未提交，不可见 ❌；不在则已提交，可见 ✅
+```
+
+> [!tip] **RC  vs  RR 下 ReadView 的区别**
+> - **READ COMMITTED**：每执行一次 SELECT **生成一个新的 ReadView**
+> - **REPEATABLE READ**：事务中**第一次 SELECT 生成 ReadView**，后续复用（解决了不可重复读）
+
+---
+
+## 十、主从复制 ⭐
+
+### 1. 复制原理
+
+```
+主库（Master）                          从库（Slave）
+   │                                       │
+   │ ① 写入 binlog                        │
+   │─────────────────────────              │
+   │                                       │ ② 读取主库 binlog
+   │         ┌─────────────────────────────│─── 写入 relay log（中继日志）
+   │         │                             │
+   │         │                             │ ③ 回放 relay log
+   │         │                             │    → 应用到从库
+   ▼         ▼                             ▼
+```
+
+| 步骤 | 说明 | 线程 |
+|:----:|------|:----:|
+| **① 主库写入 binlog** | 事务提交时写入 binlog | 主库 |
+| **② 从库 I/O 线程拉取** | 从库连接主库，读取 binlog 写入 relay log | 从库 I/O 线程 |
+| **③ 从库 SQL 线程回放** | 读取 relay log 并在从库执行 | 从库 SQL 线程 |
+
+```sql
+-- 查看从库复制状态
+SHOW SLAVE STATUS\G
+-- 重点关注：
+-- Slave_IO_Running: Yes      → I/O 线程正常
+-- Slave_SQL_Running: Yes     → SQL 线程正常
+-- Seconds_Behind_Master: 0   → 主从延迟（秒）
+```
+
+### 2. 复制模式
+
+| 模式 | 说明 | 数据安全性 | 性能影响 |
+|:----:|------|:---------:|:--------:|
+| **异步复制**（默认） | 主库提交后立即返回，不等待从库确认 | ❌ 可能丢数据 | 最快 |
+| **半同步复制** | 主库等待**至少一个从库**确认收到 binlog 后才提交 | ✅ 较高 | 中等 |
+| **全同步复制** | 主库等待所有从库确认后才提交 | ✅ 最高 | 最慢 |
+
+### 3. 主从延迟的原因与解决方案
+
+**原因**：
+- 从库 I/O 线程慢（网络延迟）
+- **从库 SQL 线程单线程回放**（主库并发写入高时，从库回放跟不上）
+- 从库硬件配置低于主库
+
+**解决方案**：
+- ⭐ 升级到 MySQL 5.7+ 的**并行复制**（slave_parallel_workers）
+- 从库硬件不低于主库
+- 避免从库上执行长查询
+- 监控 `Seconds_Behind_Master`
+
+---
+
+## 十一、读写分离
+
+### 基本架构
+
+```
+应用层
+   │
+   ├── 写操作 → 主库（Master）
+   │               ↓
+   │          binlog 同步
+   │               ↓
+   └── 读操作 → 从库（Slave 1 / Slave 2 / ...）
+```
+
+### 实现方式
+
+| 方式 | 说明 |
+|:----:|------|
+| **Spring ShardingSphere** | 配置读写分离规则，自动路由 |
+| **MyCat** | 数据库中间件 |
+| **应用层硬编码** | 配置多个数据源，手动切换 |
+
+> [!warning] **读写分离带来的问题**
+> - **主从延迟**：刚写入的数据在从库可能读不到
+> - **解决方案**：写后强制读主库 / 等待从库同步确认
+
+---
+
+## 十二、分库分表 ⭐
+
+### 1. 为什么要分库分表？
+
+| 问题 | 说明 | 解决方案 |
+|:----|:-----|:---------|
+| **单表数据量过大** | 千万级→亿级，索引深度增加，查询变慢 | **分表** |
+| **单库并发过高** | 连接数不够用，QPS 瓶颈 | **分库** |
+
+### 2. 拆分方式
+
+```
+垂直拆分（按业务拆）
+   垂直分库：将不同业务表拆分到不同数据库
+   垂直分表：将大表的大字段拆到另一张表（冷热分离）
+
+水平拆分（按行拆）
+   水平分表：将一张表的数据按规则分散到多张结构相同的表
+   水平分库：将数据分散到多个数据库实例
+```
+
+### 3. 分片策略
+
+| 策略 | 说明 | 优缺点 |
+|:----:|------|:------:|
+| **Hash 取模** | `id % N` 路由到对应库/表 | 简单，但**扩容困难** |
+| **范围分片** | 按 ID 范围（1~1000万 → 库1，1000万~2000万 → 库2） | 扩容方便，但**热点集中** |
+| **一致性 Hash** | Hash 环 + 虚拟节点 | **扩容友好**，迁移数据少 |
+
+### 4. 分库分表带来的问题
+
+| 问题 | 说明 | 解决方案 |
+|:----|:-----|:---------|
+| **跨库 JOIN** | 数据分散在不同库，无法直接 JOIN | 应用层组装 / 宽表冗余 |
+| **分布式事务** | 跨库操作需要一致性 | Seata / TCC / 可靠消息 |
+| **全局主键** | 自增 ID 会重复 | **雪花算法（Snowflake）** / Redis 发号器 / UUID |
+| **跨库分页排序** | ORDER BY + LIMIT 跨库后结果不准 | 中间件归并排序 |
+| **数据迁移** | 扩容时需要重新分布数据 | 一致性 Hash 减少迁移量 |
+
+---
+
+## 十三、MySQL 管理常用命令
+
+```sql
+-- 查看数据库版本
+SELECT VERSION();
+
+-- 查看当前连接
+SHOW PROCESSLIST;
+
+-- 查看字符集
+SHOW VARIABLES LIKE 'character%';
+
+-- 查看表状态
+SHOW TABLE STATUS;
+
+-- 分析表
+ANALYZE TABLE table_name;
+
+-- 检查表
+CHECK TABLE table_name;
+
+-- 优化表（回收碎片空间）
+OPTIMIZE TABLE table_name;
+
+-- 查看正在运行的事务
+SELECT * FROM information_schema.INNODB_TRX\G;
+
+-- 查看锁
+SELECT * FROM performance_schema.data_locks;
+```
