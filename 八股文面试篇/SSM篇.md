@@ -1,239 +1,380 @@
-# 1. Spring框架中的单例bean是线程安全的吗？
+# SSM篇
 
-Spring框架中的单例(Singleton)Bean<font style="color:#DF2A3F;">默认不是线程安全的</font>，这取决于Bean的具体实现方式。当bean中包含<font style="color:#DF2A3F;">可变状态（成员属性）</font>时，多个线程访问就要考虑到<font style="color:#DF2A3F;">线程同步问题</font>，线程安全和并发问题需要自行解决。
+## 1. Spring 中的 IoC 和 DI 是什么？
 
-解决线程安全问题，①使用@Scope（"prototype"）修改为多例。②设置为无状态（没有成员变量或成员变量用final修饰）
+**IoC（控制反转）**：将对象的创建和依赖关系的管理交给 Spring 容器，由容器负责对象的生命周期，而不是由对象自己创建或查找依赖。核心思想是**将控制权从程序代码转移到外部容器**。
 
-# 2. 什么是AOP？
+**DI（依赖注入）**：IoC 的具体实现方式，容器在创建对象时，自动将其依赖的其他对象注入给它。
 
-AOP，即面向切面编程，将公共行为和公共模块复用抽离出来，降低耦合。Spring的AOP底层是基于<font style="color:#DF2A3F;">动态代理技术</font>来实现的，也就是说在程序运行的时候，会自动的基于动态代理技术为目标对象生成一个对应的代理对象。在代理对象当中就会对目标对象当中的原始方法进行功能的增强。在我们的项目中我们自己写AOP的场景其实很少 , 但是我们使用的很多框架的功能底层都是AOP , 例如 :<font style="color:#DF2A3F;"> 权限认证、日志、事务处理</font>等。
+**三种注入方式对比**：
+| 注入方式 | 说明 | 推荐度 |
+| 构造器注入 | 保证不可变性和依赖完整性 | ⭐ **推荐** |
+| Setter 注入 | 可选依赖，支持重新注入 | ⭐⭐ 次选 |
+| 字段注入（`@Autowired`） | 代码最简洁，但不利于测试 | ❌ 不推荐生产使用 |
 
-|**注解**|**类别**|**作用**|**示例**|
-|---|---|---|---|
-|**@Aspect**|切面声明|声明一个类为切面类|`**@Aspect @Component public class LogAspect {}**`|
-|**@Pointcut**|切点定义|定义可重用的切点表达式|`**@Pointcut("execution(* com.service.*.*(..))") public void serviceMethods() {}**`|
-|**@Before**|前置通知|在目标方法执行前执行|`**@Before("serviceMethods()") public void beforeAdvice(JoinPoint jp) {}**`|
-|**@AfterReturning**|返回通知|在方法成功返回后执行|`**@AfterReturning(pointcut="serviceMethods()", returning="result") public void afterReturn(Object result) {}**`|
-|**@AfterThrowing**|异常通知|在方法抛出异常后执行|`**@AfterThrowing(pointcut="serviceMethods()", throwing="ex") public void afterThrows(Exception ex) {}**`|
-|**@After**|后置通知|在方法执行后执行（无论是否异常）|`**@After("serviceMethods()") public void afterFinally() {}**`|
-|**@Around**|环绕通知|最强大的通知类型，可控制方法执行|`**@Around("serviceMethods()") public Object around(ProceedingJoinPoint pjp) throws Throwable {}**`|
-|**@DeclareParents**|引入|为类动态引入新接口|`**@DeclareParents(value="com.service.*+", defaultImpl=DefaultImpl.class) public static NewInterface mixin;**`|
-|**@EnableAspectJAutoProxy**|配置|启用AspectJ自动代理|`**@Configuration @EnableAspectJAutoProxy public class AppConfig {}**`|
+> [!quote] **IoC 是设计思想，DI 是具体实现方式。**
 
-|**<font style="color:#000000;">通知类型</font>**|**<font style="color:#000000;">执行时机</font>**|**<font style="color:#000000;">能否阻止方法执行</font>**|**<font style="color:#000000;">能否修改返回值</font>**|**<font style="color:#000000;">能否处理异常</font>**|
-|---|---|---|---|---|
-|**<font style="color:#000000;">@Before</font>**|<font style="color:#000000;">方法执行前</font>|<font style="color:#000000;">可抛出异常阻止</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">否</font>|
-|**<font style="color:#000000;">@AfterReturning</font>**|<font style="color:#000000;">方法成功返回后</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">可修改返回值</font>|<font style="color:#000000;">否</font>|
-|**<font style="color:#000000;">@AfterThrowing</font>**|<font style="color:#000000;">方法抛出异常后</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">可捕获异常</font>|
-|**<font style="color:#000000;">@After</font>**|<font style="color:#000000;">方法执行后（finally）</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">否</font>|<font style="color:#000000;">否</font>|
-|**<font style="color:#000000;">@Around</font>**|<font style="color:#000000;">方法执行前后</font>|<font style="color:#000000;">完全控制</font>|<font style="color:#000000;">可完全修改</font>|<font style="color:#000000;">可完全处理</font>|
+---
 
-# 3. 你们项目中有没有使用到AOP？
+## 2. Spring 框架中的单例 Bean 是线程安全的吗？
 
-我们之前在后台管理系统中使用AOP来记录系统操作日志。主要思路是使用AOP的环绕通知和切点表达式，找到需要记录日志的方法，然后通过环绕通知的参数获取请求方法的参数，例如类信息、方法信息、注解、请求方式等，并将这些参数保存到数据库。
+Spring 单例 Bean **默认不是线程安全的**。当 Bean 中包含**可变状态**（成员属性）时，多线程访问就需要考虑**线程同步问题**。
 
-# 4. Spring中的事务是如何实现的？
+> [!tip] **解决思路**
+> 1. `@Scope("prototype")` → 改为**多例**，每次获取创建新实例
+> 2. **无状态设计** → 不定义可变成员变量，或使用 `final` 修饰
+> 3. **`ThreadLocal`** → 保存线程私有变量，空间换时间
+> 4. **加锁** → `synchronized` / `Lock`，但会降低并发性能
 
-Spring事务管理是基于AOP(面向切面编程)和动态代理实现的，它对方法前后进行拦截，在执行方法前开启事务，在执行完目标方法后根据执行情况提交或回滚事务。
+---
 
-# 5. Spring中事务失效的场景有哪些？
+## 3. 什么是 AOP？
 
-1. 如果方法内部捕获并处理了异常，没有将异常抛出，会导致事务失效。因此，处理异常后应该确保异常能够被抛出。
-    
+**AOP**（面向切面编程）将公共行为和公共模块复用抽离出来，降低耦合。
 
-原因：
+Spring AOP 底层基于**动态代理技术**：
+- ==JDK 动态代理==：目标类实现了接口时使用
+- ==CGLIB 动态代理==：目标类没有实现接口时使用（通过生成子类）
 
-- Spring 事务的回滚机制依赖于异常是否抛出。
-    
-- 如果在事务方法内部 try-catch 捕获了异常，但没有重新抛出（或手动回滚），Spring 无法感知异常，事务不会回滚。
-    
+常见应用场景：**权限认证、==日志记录==、==事务管理==、性能监控**
 
-2. 如果方法抛出检查型异常（checked exception），并且没有在`@Transactional`注解上配置`rollbackFor`属性为`Exception`，那么异常发生时事务可能不会回滚。
-    
+### AOP 核心注解
 
-原因
+| 注解 | 类别 | 作用 |
+|------|------|------|
+| `@Aspect` | 切面声明 | 声明一个类为切面类 |
+| `@Pointcut` | 切点定义 | 定义可重用的切点表达式 |
+| `@Before` | 前置通知 | 目标方法执行前执行 |
+| `@AfterReturning` | 返回通知 | 方法成功返回后执行 |
+| `@AfterThrowing` | 异常通知 | 方法抛出异常后执行 |
+| `@After` | 后置通知 | 方法执行后执行（finally） |
+| `@Around` | **环绕通知** | **最强大**，可控制方法执行全过程 |
+| `@EnableAspectJAutoProxy` | 配置 | 启用 AspectJ 自动代理 |
 
-- 默认情况下，Spring 事务只对 RuntimeException 和 Error 回滚。
-    
-- 检查型异常（如 IOException、SQLException）不会触发回滚，除非显式配置 @Transactional(rollbackFor = Exception.class)
-    
+### 通知类型对比
 
-3. 如果事务注解的方法不是公开（public）修饰的，也可能导致事务失效。
-    
+| 通知类型 | 能否阻止方法执行 | 能否修改返回值 | 能否处理异常 |
+|----------|:---:|:---:|:---:|
+| `@Before` | 可抛出异常阻止 | ❌ | ❌ |
+| `@AfterReturning` | ❌ | ✅ **可修改** | ❌ |
+| `@AfterThrowing` | ❌ | ❌ | ✅ **可捕获** |
+| `@After` | ❌ | ❌ | ❌ |
+| `@Around` | ✅ **完全控制** | ✅ **完全修改** | ✅ **完全处理** |
 
-# 6. Spring的bean的生命周期？
+---
 
-Spring中bean的生命周期包括以下步骤：
+## 4. 你们项目中有没有使用到 AOP？
 
-1. 通过BeanDefinition获取bean的定义信息。
-    
-2. 调用构造函数实例化bean。
-    
-3. 进行bean的依赖注入，例如通过setter方法或@Autowired注解。
-    
-4. 处理实现了Aware接口的bean。（获取bean的名字）
-    
-5. 执行BeanPostProcessor的前置处理器。（初始化前的最后修改机会，修改Bean属性、处理注解）
-    
-6. 调用初始化方法，如实现了InitializingBean接口或自定义的init-method。（执行自定义初始化逻辑，连接数据库、加载配置）
-    
-    . 执行BeanPostProcessor的后置处理器，可能在这里产生代理对象。（生成代理或最终增强 AOP 动态代理（如 @Transactional））
-    
-7. 最后是销毁bean。
-    
+我们在后台管理系统中使用 AOP 来记录**系统操作日志**。
 
-# 7. Spring中的循环引用（循环依赖）？
+> [!example] **实现思路**
+> 1. 自定义 `@Log` 注解标记需要记录日志的方法
+> 2. 使用 `@Around` 环绕通知 + 切点表达式匹配
+> 3. 通过 `ProceedingJoinPoint` 获取请求参数、类信息、方法信息等
+> 4. 将操作日志**异步**保存到数据库
 
-循环依赖发生在两个或两个以上的bean互相持有对方，形成闭环。Spring框架允许循环依赖存在，并通过三级缓存解决大部分循环依赖问题：
+---
 
-1. 一级缓存：单例池，缓存已完成初始化的bean对象。
-    
-2. 二级缓存：缓存尚未完成生命周期的早期bean对象。
-    
-3. 三级缓存：缓存ObjectFactory，用于创建bean对象。
-    
+## 5. Spring 中的事务是如何实现的？
 
-# 8. 那具体解决流程清楚吗？
+Spring 事务管理基于 **AOP + 动态代理**：
 
-解决循环依赖的流程如下：
+```
+目标方法调用前   →   开启事务
+   ↓
+目标方法执行     →   (正常 / 异常)
+   ↓
+正常返回 → 提交事务  |  抛出异常 → 回滚事务
+```
 
-1. 实例化A对象，并创建ObjectFactory存入三级缓存。（此时A还没完成依赖注入）
-    
-2. A在初始化时需要B对象，开始B的创建逻辑。
-    
-3. B实例化完成，也创建ObjectFactory存入三级缓存。
-    
-4. B需要注入A，通过三级缓存获取ObjectFactory生成A对象，由于A中的是三级缓存早期对象，将A存入二级缓存。清除A的三级缓存。
-    
-5. B通过二级缓存获得A对象后，B创建成功，存入一级缓存。清除B的三级缓存。
-    
-6. A对象初始化时，由于B已创建完成，可以直接注入B，A创建成功存入一级缓存。
-    
-7. 清除二级缓存中的临时对象A。
-    
+> [!info] **声明式事务的两种方式**
+> - ✅ 基于 `@Transactional` 注解（推荐）
+> - 📋 基于 XML 配置事务增强
 
-# 9. 构造方法出现了循环依赖怎么解决？
+---
 
-由于构造函数是bean生命周期中最先执行的，Spring框架无法解决构造方法的循环依赖问题。可以使用@Lazy懒加载注解，延迟bean的创建直到实际需要时。
+## 6. Spring 中事务失效的场景有哪些？
 
-# 10. SpringMVC的执行流程？
+> [!danger] **场景一：异常被内部捕获未抛出**
+> - 事务方法内 `try-catch` 捕获异常后没有重新抛出
+> - Spring 无法感知异常，事务**不会回滚**
+> - ✅ **解决**：捕获后重新抛出异常，或手动 `TransactionAspectSupport.currentTransactionStatus().setRollbackOnly()`
 
-SpringMVC的执行流程包括以下步骤：
+> [!warning] **场景二：抛出检查型异常（Checked Exception）**
+> - 默认只对 `RuntimeException` 和 `Error` 回滚
+> - `IOException`、`SQLException` 等**不会触发回滚**
+> - ✅ **解决**：`@Transactional(rollbackFor = Exception.class)`
 
-1. 用户发送请求到前端控制器DispatcherServlet。（请求到达，统一协调处理）
-    
-2. DispatcherServlet调用HandlerMapping找到具体处理器。（映射器处理，根据URL找对应controller器）
-    
-3. HandlerMapping返回处理器对象及拦截器（如果有）给DispatcherServlet。
-    
-4. DispatcherServlet调用HandlerAdapter。
-    
-5. HandlerAdapter适配并调用具体处理器（Controller）。
-    
-6. Controller执行并返回ModelAndView对象。
-    
-7. HandlerAdapter将ModelAndView返回给DispatcherServlet。
-    
-8. DispatcherServlet传给ViewResolver进行视图解析。
-    
-9. ViewResolver返回具体视图给DispatcherServlet。
-    
-10. DispatcherServlet渲染视图并响应用户。
-    
+> [!warning] **场景三：方法不是 public 修饰**
+> - Spring 代理机制限制，只能拦截 public 方法
+> - `private`、`protected`、`default` 方法上 `@Transactional` 失效
 
-<font style="color:#DF2A3F;">前端处理器--HandlerMapping--处理适配器--返回给前端处理器</font>
+> [!caution] **场景四：同类中方法内部调用**
+> - `this.method()` 直接调用同类中的另一个 `@Transactional` 方法
+> - 不走代理对象，事务注解不生效
+> - ✅ **解决**：将事务方法拆分到另一个 Service，或自注入调用代理方法
 
-# 11. Springboot自动配置原理？
+> [!caution] **场景五：数据库引擎不支持事务**
+> - 例如 MySQL 的 MyISAM 引擎不支持事务
+> - ✅ **解决**：改用 InnoDB 引擎
 
-Spring Boot的自动配置原理基于@SpringBootApplication注解，它封装了@SpringBootConfiguration、@EnableAutoConfiguration和@ComponentScan。<font style="color:#DF2A3F;">@EnableAutoConfiguratio</font>n是核心，它通过<font style="color:#DF2A3F;">@Import({AutoConfigurationImportSelector.class})</font>导入配置选择器，读取META-INF/spring.factories文件中的类名，根据条件注解决定是否将配置类中的Bean导入到Spring容器中。
+---
 
-例如spring-boot-web-start依赖，依赖传递：Starter 依赖 → spring-boot-autoconfigure 。然后@Import({AutoConfigurationImportSelector.class})，读取META-INF/spring.factories文件中的类名，根据条件注解@Condition这些决定是否将配置类中的Bean导入到Spring容器中。
+## 7. Spring 的 Bean 生命周期？
 
-# 12. Spring 的常见注解有哪些？
+> [!info] **完整流程（9 步）**
+>
+> **① 解析 BeanDefinition** — 读取配置元数据
+> **② 实例化** — 通过构造函数创建 Bean 实例
+> **③ 依赖注入** — Setter 注入 / `@Autowired` 属性赋值
+> **④ Aware 接口回调** — `BeanNameAware`、`BeanFactoryAware`、`ApplicationContextAware`
+> **⑤ BeanPostProcessor 前置处理** — `postProcessBeforeInitialization`，初始化前最后的修改机会
+> **⑥ 初始化** — `InitializingBean.afterPropertiesSet()` / 自定义 `init-method`
+> **⑦ ==BeanPostProcessor 后置处理==** — `postProcessAfterInitialization`，**在此产生代理对象**（AOP、`@Transactional` 都在此完成）
+> **⑧ 使用 Bean** — Bean 就绪，供应用程序使用
+> **⑨ 销毁** — `DisposableBean.destroy()` / 自定义 `destroy-method`
 
-Spring的常见注解包括：
+> [!tip] **记忆要点**
+> 关键节点：**实例化 → DI → 初始化前后处理器（AOP 代理在此产生）**
 
-1. 声明Bean的注解：@Component、@Service、@Repository、@Controller。
-    
-2. 依赖注入相关注解：@Autowired、@Qualifier、@Resource。
-    
-3. 设置作用域的注解：@Scope。
-    
-4. 配置相关注解：@Configuration、@ComponentScan、@Bean。
-    
-5. AOP相关注解：@Aspect、@Before、@After、@Around、@Pointcut。
-    
+---
 
-# 13. SpringMVC常见的注解有哪些？
+## 8. Spring 中的循环引用（循环依赖）？
 
-SpringMVC的常见注解有：
+循环依赖指两个或以上的 Bean 互相持有对方，形成闭环。
 
--@RestController：@Controller和@ResponseBody的组合
+Spring 通过**三级缓存**解决（仅适用于 **Setter 注入**）：
 
-- @RequestMapping：映射请求路径。
-    
-- @RequestBody：接收HTTP请求的JSON数据。
-    
-- @RequestParam：指定请求参数名称。
-    
-- @PathVariable：从请求路径中获取参数。
-    
-- @ResponseBody：将Controller方法返回的对象转化为JSON。
-    
-- @RequestHeader：获取请求头数据。
-    
-- @PostMapping、@GetMapping等。
-    
+| 缓存级别 | 名称 | 说明 |
+|:---:|------|------|
+| 🥇 一级缓存 | `singletonObjects` | **单例池**，已完成初始化的 Bean |
+| 🥈 二级缓存 | `earlySingletonObjects` | **早期对象**，尚未完成生命周期的 Bean |
+| 🥉 三级缓存 | `singletonFactories` | **`ObjectFactory`**，用于提前创建代理对象 |
 
-# 14. Springboot常见注解有哪些？
+> [!danger] **构造器注入的循环依赖无法解决** — 构造函数在实例化阶段就执行，此时三级缓存尚未生效
 
-Spring Boot的常见注解包括：
+---
 
-- @SpringBootApplication：由@SpringBootConfiguration、@EnableAutoConfiguration和@ComponentScan组成。
-    
-- 其他注解如@RestController、@GetMapping、@PostMapping等，用于简化Spring MVC的配置。
-    
+## 9. 循环依赖的具体解决流程？
 
-# 15. MyBatis执行流程？
+以 A 依赖 B、B 依赖 A 为例：
 
-MyBatis的执行流程如下：
+```
+① 实例化 A → 将 A 的 ObjectFactory 存入 三级缓存
+   ↓
+② A 需要注入 B → 开始创建 B
+   ↓
+③ 实例化 B → 将 B 的 ObjectFactory 存入 三级缓存
+   ↓
+④ B 需要注入 A
+   → 从三级缓存获取 A 的 ObjectFactory
+   → 生成 A 的早期对象 → 移入 二级缓存，清除 A 的三级缓存
+   ↓
+⑤ B 获取到 A → B 创建完成 → 存入 一级缓存，清除 B 的三级缓存
+   ↓
+⑥ A 恢复初始化 → 此时 B 已在 一级缓存 → 直接注入 B
+   ↓
+⑦ A 创建完成 → 存入 一级缓存，清除二级缓存中的 A 临时对象
+```
 
-1. <font style="color:#DF2A3F;">读取MyBatis配置文件</font>mybatis-config.xml。
-    
-2. <font style="color:#DF2A3F;">解析xml映射文件</font>。
-    
-3. 构造会话工厂<font style="color:#DF2A3F;">SqlSessionFactory</font>。（每个数据库环境对应一个工厂）
-    
-4. 会话工厂创建<font style="color:#DF2A3F;">SqlSession对象</font>。
-    
-5. 操作数据库的接口，<font style="color:#DF2A3F;">Executor执行器</font>。
-    
-6. Executor执行方法中的<font style="color:#DF2A3F;">MappedStatement</font>参数。
-    
-7. 输入参数映射。
-    
-8. 输出结果映射。
-    
+---
 
-# 16. Mybatis是否支持延迟加载？
+## 10. 构造方法出现循环依赖怎么解决？
 
-MyBatis支持延迟加载，即在需要用到数据时才加载。可以通过配置文件中的lazyLoadingEnabled配置启用或禁用延迟加载。
+> [!danger] **无法解决**
+> 构造函数在 Bean 生命周期中最先执行，三级缓存在此场景下无效
 
-# 17. 延迟加载的底层原理知道吗？
+> [!tip] **解决方案**
+> 1. **`@Lazy` 注解**：延迟其中一个 Bean 的创建，Spring 为其生成代理对象，使用时才真正创建
+> 2. **改为 Setter 注入**：Setter 注入可以通过三级缓存解决
+> 3. **重新设计**：拆分职责，彻底消除循环依赖
 
-延迟加载的底层原理主要使用CGLIB动态代理实现：
+---
 
-1. 使用CGLIB创建目标对象的代理对象。
-    
-2. 调用目标方法时，如果发现是null值，则执行SQL查询。
-    
-3. 获取数据后，设置属性值并继续查询目标方法。
-    
+## 11. BeanFactory 和 FactoryBean 的区别？
 
-# 18. Mybatis的一级、二级缓存用过吗？
+| | BeanFactory | FactoryBean |
+|------|-------------|-------------|
+| **本质** | Spring 容器的**顶层接口** | 一个**特殊的 Bean** |
+| **作用** | 管理 Bean 的创建、配置、生命周期 | 用于**复杂对象的创建** |
+| **获取方式** | `beanName` 获取普通 Bean | `&beanName` 获取 FactoryBean 本身；`beanName` 获取其生产的对象 |
 
-MyBatis的一级缓存是基于PerpetualCache的HashMap本地缓存，作用域为Session，默认开启。二级缓存需要单独开启，作用域为Namespace或mapper，默认也是采用PerpetualCache，HashMap存储。
+> [!example] **典型应用**
+> `MyBatis` 的 `SqlSessionFactoryBean`、`Spring` 的 `ProxyFactoryBean` 都实现了 `FactoryBean`
 
-# 19. Mybatis的二级缓存什么时候会清理缓存中的数据？
+---
 
-当作用域（一级缓存Session/二级缓存Namespaces）进行了新增、修改、删除操作后，默认该作用域下所有select中的缓存将被清空。
+## 12. SpringMVC 的执行流程？
+
+```
+用户请求
+   ↓
+① DispatcherServlet（前端控制器 → 统一调度）
+   ↓
+② HandlerMapping（处理器映射器 → 根据 URL 查找 Handler）
+   ↓
+③ 返回处理器执行链（Handler + 拦截器链）
+   ↓
+④ HandlerAdapter（处理器适配器 → 调用具体 Controller）
+   ↓
+⑤ Controller 方法执行
+   ↓
+⑥ 返回 ModelAndView
+   ↓
+⑦ ViewResolver（视图解析器 → 解析视图）
+   ↓
+⑧ 渲染视图 → 响应给用户
+```
+
+> [!info] **核心组件串记**
+> **前端控制器 → 处理器映射器 → 处理器适配器 → Controller → 视图解析器**
+
+---
+
+## 13. SpringBoot 自动配置原理？
+
+`@SpringBootApplication` 封装了三个核心注解：
+
+```
+@SpringBootApplication
+   ├── @SpringBootConfiguration     // 标识配置类
+   ├── @EnableAutoConfiguration     // ⭐ 开启自动配置（核心）
+   └── @ComponentScan               // 包扫描
+```
+
+> [!info] **`@EnableAutoConfiguration` 核心机制**
+>
+> 1. `@Import(AutoConfigurationImportSelector.class)` 导入配置选择器
+> 2. 读取 `META-INF/spring.factories` 中的自动配置类列表
+> 3. 通过 ==`@Conditional` 条件注解== 判断是否加载（如 `@ConditionalOnClass`、`@ConditionalOnMissingBean`）
+> 4. 条件满足 → 将配置类中的 Bean 注入容器
+
+> [!tip] **举例：spring-boot-starter-web**
+> 依赖传递引入 `spring-boot-autoconfigure` → 读取自动配置类 → 检测 classpath 下是否存在 `Servlet` 类 → 条件满足则注入 `DispatcherServlet` 等 Web 组件
+
+---
+
+## 14. Spring、SpringMVC、SpringBoot 常见注解
+
+### Spring 核心注解
+
+| 类别 | 注解 |
+|------|------|
+| 声明 Bean | `@Component`、`@Service`、`@Repository`、`@Controller` |
+| 依赖注入 | `@Autowired`、`@Qualifier`、`@Resource`（JSR-250） |
+| 作用域 | `@Scope`（singleton / prototype / request / session） |
+| 配置类 | `@Configuration`、`@ComponentScan`、`@Bean`、`@Import` |
+| AOP | `@Aspect`、`@Before`、`@After`、`@Around`、`@Pointcut` |
+| 条件装配 | `@Conditional`、`@Profile` |
+
+### SpringMVC 常见注解
+
+| 注解 | 作用 |
+|------|------|
+| `@RestController` | `@Controller` + `@ResponseBody` 的组合 |
+| `@RequestMapping` | 映射请求路径（类/方法级别） |
+| `@GetMapping` / `@PostMapping` 等 | 特化的 `@RequestMapping` |
+| `@RequestBody` | 接收请求体的 JSON 数据并反序列化 |
+| `@ResponseBody` | 返回值序列化为 JSON 写入响应体 |
+| `@RequestParam` | 绑定请求参数到方法参数 |
+| `@PathVariable` | 从 URL 路径中获取参数 |
+| `@RequestHeader` | 获取请求头数据 |
+| `@ControllerAdvice` | 全局异常处理、全局数据绑定 |
+
+### SpringBoot 常见注解
+
+| 注解 | 作用 |
+|------|------|
+| `@SpringBootApplication` | **核心组合注解** |
+| `@EnableAutoConfiguration` | 开启自动配置 |
+| `@ConfigurationProperties` | 绑定配置文件属性到 Java Bean |
+| `@EnableConfigurationProperties` | 启用配置属性绑定 |
+| `@ConditionalOnClass` / `@ConditionalOnMissingBean` / ... | 条件装配家族 |
+
+---
+
+## 15. MyBatis 的执行流程？
+
+```
+mybatis-config.xml → 读取配置文件
+       ↓
+解析 Mapper.xml → 构建配置对象
+       ↓
+SqlSessionFactory（会话工厂）
+       ↓
+SqlSession（会话）
+       ↓
+Executor（执行器）
+       ↓
+MappedStatement → 动态 SQL 拼接 + 参数映射
+       ↓
+输入参数映射（Java 参数 → JDBC 预编译参数）
+       ↓
+数据库执行
+       ↓
+输出结果映射（ResultSet → Java 对象）
+```
+
+> [!info] **核心流程**
+> **配置文件 → SqlSessionFactory → SqlSession → Executor → MappedStatement → 结果映射**
+
+---
+
+## 16. MyBatis 中 #{} 和 ${} 的区别？
+
+| 特性 | `#{}` | `${}` |
+|------|:---:|:---:|
+| 处理方式 | **预编译**（占位符替换） | **字符串直接拼接** |
+| ==SQL 注入== | ✅ **安全** | ❌ **不安全** |
+| 场景 | **传参**（绝大多数场景） | 表名/字段名等动态 SQL 片段 |
+| 底层 | `PreparedStatement` 占位符 `?` | 直接字符串替换 |
+
+> [!warning] **黄金原则**
+> 能用 `#{}` 的地方 **绝不** 用 `${}`。只有需要**动态传入列名、表名**时才使用 `${}`，且传入值必须做白名单校验。
+
+---
+
+## 17. MyBatis Mapper 接口的原理？
+
+Mapper 接口不需要实现类也能工作的原因 —— **JDK 动态代理**：
+
+> [!example] **工作原理**
+>
+> 1. 调用 `SqlSession.getMapper(UserMapper.class)` → MyBatis 使用 **JDK 动态代理** 创建接口的代理对象
+> 2. 代理对象通过 **方法全限定名**（如 `com.example.mapper.UserMapper.findById`）查找对应的 **MappedStatement**
+> 3. 将 SQL + 执行参数封装 → 交给 Executor 执行并返回结果
+
+---
+
+## 18. MyBatis 是否支持延迟加载？
+
+MyBatis 支持延迟加载（懒加载），在**真正需要用到关联数据时**才执行 SQL 查询。
+
+```xml
+<!-- 开启延迟加载 -->
+<setting name="lazyLoadingEnabled" value="true" />
+<setting name="aggressiveLazyLoading" value="false" />
+```
+
+> [!tip] **底层原理（CGLIB 动态代理）**
+>
+> 1. 使用 CGLIB 为目标对象创建 **代理对象**
+> 2. 调用关联属性的 getter 方法时，代理拦截
+> 3. 若关联属性为 null → 执行关联查询 SQL
+> 4. 获取数据后设置属性值，完成调用
+
+---
+
+## 19. MyBatis 的一级、二级缓存
+
+| 特性 | 一级缓存 | 二级缓存 |
+|------|:---:|:---:|
+| **默认开启** | ✅ 是 | ❌ 需要手动配置 |
+| **作用域** | `SqlSession` 级别 | `Namespace` / Mapper 级别 |
+| **存储** | HashMap（PerpetualCache） | HashMap（PerpetualCache） |
+| **开启方式** | 无需配置 | Mapper XML 中添加 `<cache/>` + `cacheEnabled=true` |
+
+> [!info] **缓存清理时机**
+> 当作用域内执行了 **INSERT / UPDATE / DELETE** 操作后，该作用域下所有 SELECT 缓存将被清空（避免脏读）
+> - 一级缓存：当前 SqlSession 的增删改触发清理
+> - 二级缓存：该 Mapper 的任何增删改触发清理

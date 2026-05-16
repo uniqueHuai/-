@@ -1,153 +1,236 @@
-分布式基础内容大纲：
+# SpringCloud 篇
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752828439300-29cbe7a1-91ab-432c-992d-65624460ef37.png)
+## 分布式基础
 
----
-
-Nacos
-
-Nacos注册中心：
-
-服务注册：微服务启动时将自己的网络地址、元数据等信息注册到Nacos
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752828599216-4567caac-ebd0-4a9e-b6bd-d5fb2af07b6d.png)
-
-服务发现：服务消费者能够查询和发现可用的服务实例（返回访问的地址）
-
-使用方法在springboot启动类上面加上@EnableDiscoveryClient注解
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752828879314-3473cc51-da17-452d-b642-7c0973e55c09.png)
-
-远程调用（编程式）：
-
-基础实现：使用RestTemplate实例（springboot-web-start依赖），配合服务发现中的访问地址，发送请求，返回数据。
-
-负载均衡实现：
-
-步骤四是另一种方法，在RestTemplate的bean对象下使用@LoadBalanced注解，对用访问url地址写为对方微服务名字。
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752830837408-34f7a6c2-bce9-48b7-8695-5333c6284c6d.png)
-
-Nacos注册中心注意点，当Nacos宕机时：
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752831559756-71f11aa9-aec9-4260-ab8b-d58e817ef3e7.png)
+> [!info] 微服务架构将单一应用拆分为多个独立服务，每个服务独立部署、独立演进，服务之间通过轻量级通信机制（HTTP/RPC）交互。
 
 ---
 
-Nacos配置中心：
+## Nacos
 
-动态更新项目里面的配置信息：
+Nacos 实现**两大核心功能**：注册中心 + 配置中心。
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752832464890-799625c7-237a-4353-9d00-a1ccdf8f2364.png)
+### Nacos 注册中心
 
-三种方式（推荐二）
+| 概念 | 说明 |
+|------|------|
+| **服务注册** | 微服务启动时将自身信息（IP、端口、服务名）注册到 Nacos |
+| **服务发现** | 服务消费者从 Nacos 查询可用的服务实例列表 |
+| **健康检查** | Nacos 定期检测服务状态，剔除不可用实例 |
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752832505173-12dfe20d-5fd3-4533-a149-9df3ad02fa37.png)
+**使用方法**：
 
-数据隔离（不同环境使用不同的配置文件）：
+```java
+@SpringBootApplication
+@EnableDiscoveryClient  // 启用服务发现
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
 
-使用到Nacos中的名称空间
+#### 远程调用
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752833444432-1dc8e9ea-254c-44b6-95ae-1faf390fa844.png)
+**基础实现（RestTemplate）**：
 
-Nacos小结：
+```java
+@Bean
+public RestTemplate restTemplate() {
+    return new RestTemplate();
+}
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752833521074-6a92b17c-a718-4f36-9e42-89655fe9c820.png)
+// 调用时直接使用 IP + 端口
+String url = "http://localhost:8081/api/data";
+String result = restTemplate.getForObject(url, String.class);
+```
 
----
+**负载均衡实现（@LoadBalanced）**：
 
-OpenFeign
+```java
+@Bean
+@LoadBalanced  // 开启负载均衡
+public RestTemplate restTemplate() {
+    return new RestTemplate();
+}
 
-远程调用（声明式）：
+// 调用时使用服务名代替 IP
+String url = "http://user-service/api/data";
+String result = restTemplate.getForObject(url, String.class);
+```
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752890960509-b3cd8609-5307-41a8-ab0e-c2a5768da6d3.png)
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752891026456-ade08a99-b886-438e-9a93-65f9af1b01a2.png)
-
-进阶配置：
-
-配置日志
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752892027261-cfff101d-6cfb-4377-a619-00b037bffbe8.png)
-
-超时控制
-
-默认下
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752892254227-328a581e-d7b6-4228-93ab-65feeb4c9043.png)
-
-精确设置在配置文件里面进行配置信息
-
-重试机制
-
-默认不开启，两种方法开启（配置文件和bean重试器）
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752892647415-17df755f-0bd5-406b-99cf-2f9065a4c8b1.png)
-
-拦截器
-
-请求拦截器和响应拦截器，两种方法（配置文件和拦截器类，bean拦截器类）
-
-兜底返回Fallback
-
-编写兜底返回bean，继承ProductFeignClient
-
-总结
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752893470698-09cc9766-cd41-4b44-88ab-bdcbece7d721.png)
+> [!warning] **Nacos 宕机时的行为**
+> - 服务提供者：本地缓存服务列表，继续提供服务
+> - 服务消费者：本地缓存的服务列表继续可用，但无法感知新服务
+> - Nacos 恢复后自动同步数据
 
 ---
 
-Sentinel（用户访问资源的规则）
+### Nacos 配置中心
 
-异常处理
+**作用**：实现配置的**动态更新**，无需重启服务。
 
-使用：引入依赖，配置Sentinel地址信息，再进入控制台即可
+#### 三种配置方式
 
-异常处理：
+| 方式 | 说明 | 推荐 |
+|:----:|------|:----:|
+| ① 硬编码 | 代码中直接写配置 | ❌ |
+| ② **Spring Cloud 原生集成** | 使用 `@RefreshScope` + `bootstrap.yml` | **✅ 推荐** |
+| ③ Nacos Open API | HTTP 接口手动刷新 | 仅特殊场景 |
 
-继承BlockException，编写异常处理
+#### 数据隔离
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752941580580-efc3ca4d-92e2-456a-933d-63aa77918f91.png)
+通过 **Namespace（命名空间）** 实现不同环境（开发/测试/生产）的配置隔离：
 
-流控规则（限制多于请求，保护资源不被耗尽，防止雪崩）
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752982391838-cbc4d9b9-789b-443b-9423-edc1e72095e1.png)![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1752982402749-195b770b-0eea-4dce-92b1-40b995751da3.png)
-
-熔断降级规则
-
-开启熔断规则后，当请求错误到达一定次数，将会自动fallback（兜底数据），在设置的一定时间内不会再请求B。
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753069428814-b8046434-347b-4a71-8a17-7887e23dea98.png)
-
----
-
-Gateway（转发前端请求路由）
-
-使用引入依赖，配置信息
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753089362343-6eda5a72-7841-4a84-a2f2-129be11a529f.png)
-
-URI目的地
-
-Predicate断言
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753089495143-abb654f5-d596-46da-8931-008538331190.png)
-
-Filter过滤器
-
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753089509979-991b3e79-9552-4bae-beb8-f19716278dbc.png)
+```
+Namespace: dev     → 开发环境配置
+Namespace: test    → 测试环境配置
+Namespace: prod    → 生产环境配置
+```
 
 ---
 
-Seata（解决分布式事务问题）
+## OpenFeign
 
-使用引入依赖，编写file.conf配置文件
+**声明式 HTTP 客户端**，简化服务间远程调用。
 
-原理
+### 基本使用
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753089790964-e2c3f67b-bd03-4cc3-88b0-a587e51476a0.png)
+```java
+// 1. 引入依赖 + 启动类加 @EnableFeignClients
+@SpringBootApplication
+@EnableFeignClients
+public class Application {}
 
-二阶提交协议和undo_log
+// 2. 编写 Feign 接口
+@FeignClient(name = "user-service", path = "/api/user")
+public interface UserFeignClient {
+    @GetMapping("/{id}")
+    User getUser(@PathVariable("id") Long id);
+}
 
-![](https://cdn.nlark.com/yuque/0/2025/png/52814014/1753089804716-725ed0fd-891e-41d6-aa48-820c64059a6b.png)
+// 3. 注入使用
+@Service
+public class OrderService {
+    @Autowired
+    private UserFeignClient userFeignClient;
+
+    public User findUser(Long id) {
+        return userFeignClient.getUser(id);
+    }
+}
+```
+
+### 进阶配置
+
+| 功能 | 说明 |
+|------|------|
+| **日志配置** | 通过配置类设置 Feign 日志级别（BASIC / HEADERS / FULL） |
+| **超时控制** | `connectTimeout` + `readTimeout`，默认 1 秒 |
+| **重试机制** | 默认不开启，可通过配置或 `Retryer` Bean 开启 |
+| **拦截器** | 请求拦截器 / 响应拦截器，用于统一添加 Header |
+| **Fallback 兜底** | 编写 Fallback 类实现服务降级 |
+
+> [!tip] **超时配置示例**
+> ```yaml
+> spring.cloud.openfeign.client.config.default.connect-timeout: 5000
+> spring.cloud.openfeign.client.config.default.read-timeout: 5000
+> ```
+
+---
+
+## Sentinel（流量防卫兵）
+
+Sentinel 以**流量**为切入点，提供**限流、熔断降级、系统保护**等功能。
+
+### 基本使用
+
+1. 引入 `sentinel-core` 依赖
+2. 配置 Sentinel 控制台地址
+3. 在控制台中配置规则
+
+### 异常处理
+
+```java
+// 实现 BlockExceptionHandler 接口，自定义限流/降级处理
+@Component
+public class MyBlockHandler implements BlockExceptionHandler {
+    @Override
+    public void handle(HttpServletRequest request, HttpServletResponse response,
+                       BlockException e) throws Exception {
+        response.setStatus(429);
+        response.getWriter().write("请求过于频繁，请稍后再试");
+    }
+}
+```
+
+### 流控规则
+
+| 概念 | 说明 |
+|------|------|
+| **资源** | 被保护的方法或接口 |
+| **阈值** | 允许的最大 QPS 或线程数 |
+| **流控模式** | 直接 / 关联 / 链路 |
+| **流控效果** | 快速失败 / Warm Up / 排队等待 |
+
+### 熔断降级规则
+
+> [!warning] 开启熔断后，当请求错误率达到阈值，后续请求将自动触发 **Fallback 兜底**，在设定的时间窗口内不再请求目标服务，防止雪崩效应。
+
+---
+
+## Gateway（网关）
+
+**作用**：统一入口，转发前端请求到后端微服务。
+
+### 三大核心组件
+
+| 组件 | 说明 | 类比 |
+|------|------|:----:|
+| **Route（路由）** | 路由的基本构建块 | 类似 Nginx location |
+| **Predicate（断言）** | 匹配 HTTP 请求的条件 | 类似 if 判断 |
+| **Filter（过滤器）** | 对请求/响应进行修改 | 类似中间件 |
+
+### 配置示例
+
+```yaml
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+```
+
+> [!tip] **Gateway  vs  Feign**
+> - **Gateway**：外部请求的**统一入口**，处理前端到后端的路由
+> - **Feign**：微服务**内部**的声明式 HTTP 调用
+
+---
+
+## Seata（分布式事务）
+
+### 核心原理
+
+Seata 通过 **AT 模式**（自动补偿）实现分布式事务，核心流程：
+
+```
+① TM（事务管理器）向 TC（事务协调器）开启全局事务
+② RM（资源管理器）注册分支事务，执行本地 SQL 并记录 undo_log
+③ TM 根据结果向 TC 发起全局提交或回滚
+④ TC 通知各 RM 执行提交或回滚（通过 undo_log）
+```
+
+> [!info] **二阶段提交**
+> - **一阶段**：业务 SQL + undo_log（记录修改前数据）
+> - **二阶段**：成功则删除 undo_log；失败则通过 undo_log 回滚
+
+### 使用方式
+
+1. 引入 `seata-all` 依赖
+2. 配置 `file.conf` 和 `registry.conf`
+3. 在全局事务入口方法加 `@GlobalTransactional`

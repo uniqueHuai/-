@@ -1,0 +1,24 @@
+{
+  "id": "conv-1778903940446-p5cy9vfz0",
+  "providerId": "claude",
+  "title": "Review and optimize notes",
+  "titleGenerationStatus": "success",
+  "createdAt": 1778903940446,
+  "updatedAt": 1778904164175,
+  "lastResponseAt": 1778904164175,
+  "sessionId": "6090f481-78bb-427b-9590-6b13ebee0b45",
+  "providerState": {
+    "providerSessionId": "6090f481-78bb-427b-9590-6b13ebee0b45"
+  },
+  "currentNote": "八股文面试篇/SSM篇.md",
+  "usage": {
+    "model": "haiku",
+    "inputTokens": 4964,
+    "cacheCreationInputTokens": 0,
+    "cacheReadInputTokens": 49280,
+    "contextWindow": 200000,
+    "contextTokens": 54244,
+    "percentage": 27,
+    "contextWindowIsAuthoritative": true
+  }
+}

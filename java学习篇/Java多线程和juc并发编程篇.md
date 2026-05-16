@@ -1,20 +1,22 @@
-# 线程的基本概念
+# Java多线程和JUC并发编程篇
 
-线程是程序执行的最小单元，是进程中的一个独立执行路径。
+## 一、线程的基本概念
 
-与进程的区别：
+**线程**是程序执行的最小单元，是进程中的一个独立执行路径。
 
-- 进程是操作系统资源分配的基本单位
-- 线程是CPU调度的基本单位
-- 同一进程的多个线程共享进程的资源
+| 对比维度 | 进程 | 线程 |
+|----------|:----:|:----:|
+| 资源分配 | 操作系统**资源分配**的基本单位 | 所属进程内共享资源 |
+| CPU 调度 | ❌ | ✅ **CPU 调度**的基本单位 |
+| 资源开销 | 独立内存空间，开销大 | 共享进程资源，开销小 |
 
 ---
 
-# 创建线程的方式
+## 二、创建线程的方式
 
-## 1 继承Thread类
+### 1. 继承 Thread 类
 
-```
+```java
 class MyThread extends Thread {
     @Override
     public void run() {
@@ -22,13 +24,12 @@ class MyThread extends Thread {
     }
 }
 // 使用
-MyThread thread = new MyThread();
-thread.start();
+new MyThread().start();
 ```
 
-## 2 实现Runnable接口
+### 2. 实现 Runnable 接口（推荐）
 
-```
+```java
 class MyRunnable implements Runnable {
     @Override
     public void run() {
@@ -36,478 +37,489 @@ class MyRunnable implements Runnable {
     }
 }
 // 使用
-Thread thread = new Thread(new MyRunnable());
-thread.start();
+new Thread(new MyRunnable()).start();
 ```
 
-## 3 实现Callable接口（带返回值）
+### 3. 实现 Callable 接口（带返回值）
 
-```
+```java
 class MyCallable implements Callable<String> {
     @Override
     public String call() throws Exception {
-        // 线程执行的代码
         return "结果";
     }
 }
 // 使用
 FutureTask<String> futureTask = new FutureTask<>(new MyCallable());
-Thread thread = new Thread(futureTask);
-thread.start();
-String result = futureTask.get(); // 获取返回值
+new Thread(futureTask).start();
+String result = futureTask.get(); // 获取返回值（会阻塞）
 ```
 
-2.4 使用线程池（推荐）
+### 4. 使用线程池（推荐）
 
-```
+```java
 ExecutorService executor = Executors.newFixedThreadPool(5);
-executor.execute(new Runnable() {
-    @Override
-    public void run() {
-        // 线程执行的代码
-    }
-});
-// 或者
-Future<String> future = executor.submit(new Callable<String>() {
-    @Override
-    public String call() throws Exception {
-        // 线程执行的代码
-        return "结果";
-    }
-});
+executor.execute(() -> System.out.println("执行任务"));
+
+Future<String> future = executor.submit(() -> "结果");
 ```
+
+> [!tip] **三种方式对比**
+>
+| 方式 | 优点 | 缺点 |
+|------|------|------|
+| 继承 Thread | 简单直接 | 不能继承其他类 |
+| 实现 Runnable | 可继承其他类 | 无返回值 |
+| 实现 Callable | 有返回值，可抛异常 | 略复杂 |
+| **线程池** | **复用线程，控制并发，推荐** | — |
 
 ---
 
-# 线程的生命周期
+## 三、线程的生命周期
 
-新建(New)：线程对象被创建但尚未启动
+```
+新建(NEW) ──start()──▶ 就绪(RUNNABLE) ──CPU调度──▶ 运行(RUNNING)
+                                                        │
+                        ┌────────────────────────────────┤
+                        ▼                                ▼
+                    阻塞(BLOCKED)                     死亡(TERMINATED)
+                        │
+                    ┌───┴───┐
+                    ▼       ▼
+                等待阻塞    同步阻塞
+                wait()    锁竞争失败
+                其他阻塞
+                sleep/join
+```
 
-就绪(Runnable)：调用start()后，等待CPU调度
-
-运行(Running)：获得CPU资源，执行run()方法
-
-阻塞(Blocked)：线程暂时停止执行
-
-等待阻塞：wait()
-
-同步阻塞：获取同步锁失败
-
-其他阻塞：sleep()或join()
-
-死亡(Dead)：run()执行完成或异常退出
+| 状态 | 说明 |
+|------|------|
+| **NEW** | 线程对象已创建，未调用 `start()` |
+| **RUNNABLE** | 调用了 `start()`，等待 CPU 调度 |
+| **RUNNING** | 获得 CPU 资源，正在执行 `run()` |
+| **BLOCKED** | `wait()` / 锁竞争失败 / `sleep()` / `join()` |
+| **TERMINATED** | `run()` 执行完成或异常退出 |
 
 ---
 
-# 线程的基本控制方法
+## 四、线程的基本控制方法
 
-start()：启动线程
+| 方法 | 属于 | 说明 |
+|------|:----:|------|
+| `start()` | Thread | **启动**线程 |
+| `run()` | Thread | 线程**执行体** |
+| `wait()` | **Object** | **释放锁**，等待 `notify()`/`notifyAll()` 唤醒 |
+| `sleep()` | Thread | 线程**休眠**，**不释放锁** |
+| `yield()` | Thread | **让出** CPU，进入就绪状态 |
+| `join()` | Thread | **等待**该线程终止 |
+| `interrupt()` | Thread | 中断线程（设置中断标志位） |
+| `isAlive()` | Thread | 判断线程是否存活 |
 
-run()：线程执行体
-
-wait（）：object类方法，释放锁，需要notify()/notifyAll()唤醒或超时
-
-sleep(long millis)：线程休眠，不释放锁
-
-yield()：让出CPU，进入就绪状态
-
-join()：等待该线程终止
-
-interrupt()：中断线程
-
-isAlive()：判断线程是否存活
+> [!warning] **`wait()` vs `sleep()` 关键区别**
+> - `wait()` 是 Object 方法，**会释放锁**，需要被唤醒
+> - `sleep()` 是 Thread 方法，**不会释放锁**，到期自动唤醒
 
 ---
 
-# 线程同步与锁
+## 五、线程同步与锁
 
-## 1 synchronized关键字（传统）（可重入锁）
+### 1. synchronized 关键字（内置锁）
 
-- 非公平锁
-- 内置锁
-- 隐式获取锁和释放锁
-- 锁不可中断和查询状态
+- 可重入锁
+- 默认**非公平锁**
+- 隐式获取 / 释放锁
+- 锁不可中断、不可查询状态
 
-同步方法：
+```java
+// 同步方法
+public synchronized void method() { }
 
-```
-public synchronized void method() {
-    // 同步代码
-}
-```
-
-同步代码块：
-
-```
-synchronized(锁对象) {
-    // 同步代码
-}
+// 同步代码块
+synchronized(锁对象) { }
 ```
 
-## 2 Lock接口（JUC方式）（可重入锁）
+### 2. Lock 接口（JUC）
 
-- 默认非公平锁，可设置公平锁
-- 显示调用lock()和unlock（）
-- 可查询锁的状态
+- 默认非公平锁，可设置为**公平锁**
+- **显式**调用 `lock()` 和 `unlock()`
+- 可查询锁状态
 
-```
-Lock lock = new ReentrantLock();
+```java
+Lock lock = new ReentrantLock(true); // fair = true 为公平锁
 lock.lock();
 try {
     // 同步代码
 } finally {
-    lock.unlock();
+    lock.unlock(); // ⚠️ 必须在 finally 中释放
 }
 ```
 
-## 3 ReadWriteLock接口（读写锁）
+### 3. ReadWriteLock（读写锁）
 
-- 读锁（共享锁）
-- 写锁（排他锁）
+| 锁类型 | 名称 | 说明 |
+|:------:|------|------|
+| **读锁** | 共享锁 | 多个线程可同时读 |
+| **写锁** | 排他锁 | 只能一个线程写，读也阻塞 |
 
-```
- private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
-    private int sharedData = 0;
+```java
+private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+private int data = 0;
 
-    // 读操作
-    public int readData() {
-        rwLock.readLock().lock();
-        try {
-            System.out.println(Thread.currentThread().getName() + " 读取数据: " + sharedData);
-            return sharedData;
-        } finally {
-            rwLock.readLock().unlock();
-        }
-    }
+// 读操作（共享）
+public int read() {
+    rwLock.readLock().lock();
+    try { return data; } 
+    finally { rwLock.readLock().unlock(); }
+}
 
-    // 写操作
-    public void writeData(int newValue) {
-        rwLock.writeLock().lock();
-        try {
-            System.out.println(Thread.currentThread().getName() + " 写入数据: " + newValue);
-            sharedData = newValue;
-        } finally {
-            rwLock.writeLock().unlock();
-        }
-    }
+// 写操作（排他）
+public void write(int value) {
+    rwLock.writeLock().lock();
+    try { data = value; } 
+    finally { rwLock.writeLock().unlock(); }
+}
 ```
 
-3 volatile关键字(无锁，只是多线程同步时只能修饰变量，轻量级同步机制)
+### 4. volatile 关键字（轻量级同步）
 
-保证变量的可见性，但不保证原子性，禁止指令重排
+**特性**：
+- ✅ 保证变量的**可见性**（修改后立即刷新到主存）
+- ❌ **不保证原子性**
+- ✅ **禁止指令重排**
 
-```
+```java
 private volatile boolean flag = false;
 ```
 
-4 原子类（这个可以保证原子性）
+> [!tip] **volatile vs synchronized**
+> - `volatile` 只能修饰变量，适用于**一个线程写、多个线程读**的场景
+> - `synchronized` 可以修饰方法/代码块，保证**可见性 + 原子性**
 
-java.util.concurrent.atomic包下的原子类，如：
+### 5. 原子类（保证原子性）
 
-- AtomicInteger
-- AtomicLong
-- AtomicBoolean
-- AtomicReference
+`java.util.concurrent.atomic` 包下，基于 **CAS** 实现：
+
+| 原子类 | 说明 |
+|--------|------|
+| `AtomicInteger` | 原子整型 |
+| `AtomicLong` | 原子长整型 |
+| `AtomicBoolean` | 原子布尔 |
+| `AtomicReference<V>` | 原子引用类型 |
 
 ---
 
-# 线程间通信
+## 六、线程间通信
 
-wait()/notify()/notifyAll() （不能精确唤醒线程）
+### 方式一：wait / notify（传统）
 
-必须在同步代码块中使用：
+> [!warning] 必须在 `synchronized` 同步块中使用，否则抛 `IllegalMonitorStateException`
 
-```
+```java
 synchronized(obj) {
-    obj.wait(); // 释放锁并等待
-    obj.notify(); // 唤醒一个等待线程
+    obj.wait();      // 释放锁并等待（不能精确唤醒指定线程）
+    obj.notify();    // 随机唤醒一个等待线程
     obj.notifyAll(); // 唤醒所有等待线程
 }
 ```
 
-Condition（能精确的唤醒线程）
+### 方式二：Condition（精确唤醒）
 
-与Lock配合使用：
+与 Lock 配合使用，可以精确唤醒**指定**线程：
 
-```
+```java
 Lock lock = new ReentrantLock();
 Condition condition = lock.newCondition();
 
 lock.lock();
 try {
-    condition.await(); // 类似wait()
-    condition.signal(); // 类似notify()
-    condition.signalAll(); // 类似notifyAll()
+    condition.await();    // 类似 wait()
+    condition.signal();   // 类似 notify() — 精确唤醒
+    condition.signalAll();
 } finally {
     lock.unlock();
 }
 ```
 
-注意虚假唤醒，这是JVM的一个特性，用while来条件判断。
+> [!danger] **虚假唤醒（Spurious Wakeup）**
+> 线程可能在未被 `notify()`/`signal()` 的情况下被唤醒。**必须用 `while` 循环判断条件**，而不是 `if`：
+> ```java
+> while (条件不满足) { // ⚠️ 用 while 不是 if
+>     condition.await();
+> }
+> ```
 
 ---
 
-# 线程安全类
+## 七、线程安全类
 
-List并发下线程不安全，解决方法有：
+### 线程安全的 List
 
-```
-//方法1
+```java
+// 方法1：Vector（古老，不推荐）
 List<String> list1 = new Vector<>();
-//方法2
+
+// 方法2：同步包装类
 List<String> list2 = Collections.synchronizedList(new ArrayList<>());
-//方法3
+
+// 方法3：CopyOnWriteArrayList ✅ 推荐（读多写少场景）
 List<String> list3 = new CopyOnWriteArrayList<>();
 ```
 
-Set并发下线程不安全，解决方法有：
+### 线程安全的 Set
 
-```
-//方法1
-Set<String> set2 = Collections.synchronizedSet(new HashSet<>());
-//方法2
-Set<String> set3 = new CopyOnWriteArraySet<>();
+```java
+Set<String> set1 = Collections.synchronizedSet(new HashSet<>());
+Set<String> set2 = new CopyOnWriteArraySet<>();
 ```
 
-Map并发下线程不安全，解决方法有：
+### 线程安全的 Map
 
-```
-//方法1
+```java
 Map<String, String> map1 = Collections.synchronizedMap(new HashMap<>());
-//方法2
-Map<String, String> map2 = new ConcurrentHashMap<>();
+Map<String, String> map2 = new ConcurrentHashMap<>(); // ✅ 推荐
 ```
 
 ---
 
-# 并发集合
+## 八、并发集合
 
-- CopyOnWriteArrayList：线程安全的ArrayList
-- CopyOnWriteArraySet：线程安全的HashSet
-- ConcurrentHashMap：线程安全的HashMap
-- BlockingQueue：阻塞队列接口
-- ArrayBlockingQueue
-- LinkedBlockingQueue
-- PriorityBlockingQueue
-- SynchronousQueue
-
----
-
-# 阻塞队列
-
-![](https://cdn.nlark.com/yuque/0/2025/jpeg/52814014/1755488290184-33eb7d3e-0519-4e95-a511-cdd4683ee0ae.jpeg)
-
-## 四组api
-
-```
-ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(10);  //容量为10的队列
-```
-
-|   |   |   |   |   |
-|---|---|---|---|---|
-|方式|抛出异常|有返回值，不抛出异常|阻塞等待|等待超时|
-|添加|add()|offer()|put()|offer(,,)|
-|移除|remove()|poll()|take()|poll(,,)|
-|检测队首元素|element()|peek()|--|--|
-
-## SynchronizedQueue同步队列
-
-队列容量为一，使用put（）和take（），放一个拿一个。
+| 集合 | 说明 |
+|------|------|
+| `CopyOnWriteArrayList` | 线程安全的 ArrayList，**写时复制** |
+| `CopyOnWriteArraySet` | 线程安全的 HashSet |
+| `ConcurrentHashMap` | 线程安全的 HashMap，**分段锁/CAS** |
+| `BlockingQueue` | 阻塞队列接口 |
+| `ArrayBlockingQueue` | 有界阻塞队列 |
+| `LinkedBlockingQueue` | 可选有界阻塞队列（链表） |
+| `PriorityBlockingQueue` | 支持优先级排序 |
+| `SynchronousQueue` | 容量为 0，**必须生产者消费者同时到达** |
 
 ---
 
-# 线程池
+## 九、阻塞队列
 
-作用
+### 四组 API
 
-减少线程创建/销毁开销：线程的创建和销毁是昂贵的操作，线程池通过复用已创建的线程，避免了频繁创建销毁的开销
+| 方式 | 抛出异常 | 返回特殊值 | 阻塞等待 | 超时等待 |
+|:----:|:--------:|:----------:|:--------:|:--------:|
+| **添加** | `add()` | `offer()` | `put()` | `offer(time, unit)` |
+| **移除** | `remove()` | `poll()` | `take()` | `poll(time, unit)` |
+| **检测队首** | `element()` | `peek()` | — | — |
 
-控制内存占用：无限制创建线程可能导致内存耗尽，线程池限制最大线程数量
-
-1 创建线程池
-
-```
-//推荐使用 new ThreadPoolExecutor创建线程
-
-ExecutorService singlepool = Executors.newSingleThreadExecutor();//单个线程
-ExecutorService threadPool = Executors.newFixedThreadPool(5); // 固定大小
-ExecutorService cachedPool = Executors.newCachedThreadPool(); // 可伸缩线程池，可缓存
-//执行线程
-.execute();      //在（）内执行任务
-.shutdown();     //关闭线程池
-
-ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(3); // 定时
-scheduledPool.schedule()   // 单次延迟任务
-scheduledPool.scheduleAtFixedRate()    // 固定频率任务（严格间隔）
-scheduledPool.scheduleWithFixedDelay()   // 固定延迟任务（保证间隔）
+```java
+ArrayBlockingQueue<Integer> queue = new ArrayBlockingQueue<>(10);
 ```
 
-2 ThreadPoolExecutor（7个参数）
+> [!info] **`SynchronousQueue`**
+> 容量为 1 的同步队列，一个 `put()` 必须等待一个 `take()`，**放一个拿一个**。
 
+---
+
+## 十、线程池
+
+### 作用
+
+- ✅ **减少线程创建/销毁开销**：复用已创建的线程
+- ✅ **控制内存占用**：限制最大线程数量，防止资源耗尽
+- ✅ **统一管理**：任务队列、拒绝策略等
+
+### 创建线程池
+
+```java
+// ⚠️ 推荐使用 new ThreadPoolExecutor() 创建，明确参数
+// 不推荐 Executors 工具类（可能隐藏问题）
+
+ExecutorService fixedPool = Executors.newFixedThreadPool(5);     // 固定大小
+ExecutorService cachedPool = Executors.newCachedThreadPool();     // 可伸缩
+ExecutorService singlePool = Executors.newSingleThreadExecutor(); // 单线程
+ScheduledExecutorService scheduledPool = Executors.newScheduledThreadPool(3);
+
+scheduledPool.schedule(task, 10, TimeUnit.SECONDS);              // 单次延迟
+scheduledPool.scheduleAtFixedRate(task, 0, 5, TimeUnit.SECONDS); // 固定频率
+scheduledPool.scheduleWithFixedDelay(task, 0, 5, TimeUnit.SECONDS); // 固定延迟
 ```
+
+### ThreadPoolExecutor（7 个参数）
+
+```java
 ThreadPoolExecutor executor = new ThreadPoolExecutor(
-    corePoolSize, // 核心线程数
-    maximumPoolSize, // 最大线程数
-    keepAliveTime, // 空闲线程存活时间
-    TimeUnit.MILLISECONDS, // 时间单位
-    new LinkedBlockingQueue<Runnable>() // 工作队列
-    //后面两个参数是可以创建野可以使用默认的，就是可以5个就创建了
-    Executors.defaultThreadFactory(),  //默认线程工厂
-    new ThreadPoolExecutor.AbortPolicy()  //拒绝策略，就是抛出异常还是不处理这些
+    corePoolSize,                                    // ① 核心线程数
+    maximumPoolSize,                                 // ② 最大线程数
+    keepAliveTime,                                   // ③ 空闲线程存活时间
+    TimeUnit.MILLISECONDS,                           // ④ 时间单位
+    new LinkedBlockingQueue<>(100),                  // ⑤ 工作队列
+    Executors.defaultThreadFactory(),                // ⑥ 线程工厂
+    new ThreadPoolExecutor.AbortPolicy()             // ⑦ 拒绝策略
 );
 ```
 
-3 线程池参数
+### 参数调优建议
 
-- corePoolSize：核心线程数，通过io密集型获取主要io线程数（调优）
-- maximumPoolSize：最大线程数，通过cpu密集型获取计算机的线程数（调优）
+| 类型 | 公式 | 说明 |
+|:----:|------|------|
+| **CPU 密集型** | `N + 1` | `Runtime.getRuntime().availableProcessors() + 1` |
+| **IO 密集型** | `2N` | 大部分线程在等待 IO，可设置更多线程 |
 
-Runtime.getRuntime().availableProcessors();
+### 四种拒绝策略
 
-- keepAliveTime：空闲线程存活时间
-- workQueue：任务队列
-- threadFactory：线程工厂
-- handler：拒绝策略，有四个拒绝策略
+| 策略 | 行为 |
+|------|------|
+| `AbortPolicy`（默认） | 抛出 `RejectedExecutionException` |
+| `CallerRunsPolicy` | 调用者线程自己执行任务 |
+| `DiscardPolicy` | 丢弃任务，不抛异常 |
+| `DiscardOldestPolicy` | 丢弃队列中最旧的任务，然后重试 |
 
 ---
 
-# 其他高级特性
+## 十一、JUC 高级工具
 
-1 CountDownLatch(减法计数器)
+### 1. CountDownLatch（减法计数器）
 
-等待多个线程完成：
+**场景**：等待多个线程完成后再继续执行。
 
-```
-CountDownLatch latch = new CountDownLatch(3); //设置3个计数器
+```java
+CountDownLatch latch = new CountDownLatch(3);
 
-latch.countDown(); //减去一个计数器
+// 每个线程完成后调用
+latch.countDown();  // 计数器减 1
 
-latch.await();	//计数器要为零才能继续执行
-```
-
-2 CyclicBarrier（加法计数器）
-
-线程到达屏障时被阻塞：
-
-```
-CyclicBarrier barrier = new CyclicBarrier(3,Runnable);
-// 在多个线程中,执行了三次这个才能执行上面Runnable里面的东西
-barrier.await();
+// 主线程等待
+latch.await();      // 阻塞，直到计数器归零
 ```
 
-3 Semaphore（限流用）
+### 2. CyclicBarrier（加法计数器）
 
-控制同时访问的线程数量：
+**场景**：多个线程互相等待，都到达屏障后再一起继续。
 
+```java
+CyclicBarrier barrier = new CyclicBarrier(3, () -> {
+    System.out.println("所有线程到达屏障，开始执行");
+});
+
+// 每个线程中
+barrier.await();  // 等待，直到 3 个线程都到达
 ```
-Semaphore semaphore = new Semaphore(5);
-semaphore.acquire();  //获得资源等到被释放为止，-1
-semaphore.release();  //释放资源，+1
+
+> [!tip] **CountDownLatch vs CyclicBarrier**
+> - `CountDownLatch`：**一个线程等待多个线程**（减计数，**不可重置**）
+> - `CyclicBarrier`：**多个线程互相等待**（加计数，**可重置复用**）
+
+### 3. Semaphore（信号量 — 限流）
+
+**场景**：控制同时访问资源的线程数量。
+
+```java
+Semaphore semaphore = new Semaphore(5);   // 最多 5 个线程同时访问
+
+semaphore.acquire();   // 获取许可（-1），没有则阻塞等待
+semaphore.release();   // 释放许可（+1）
 ```
 
-4 Future和FutureTask(异步回调)
+### 4. Future / FutureTask（异步回调）
 
-获取异步计算结果：
-
-```
-FutureTask<String> futureTask = new FutureTask<>(callable);
+```java
+FutureTask<String> futureTask = new FutureTask<>(() -> "异步结果");
 new Thread(futureTask).start();
-String result = futureTask.get();
+String result = futureTask.get();   // 阻塞获取结果
 ```
 
-5 Fork/Join框架
+### 5. Fork / Join 框架
 
-```
+**场景**：将大任务拆分为小任务并行执行，再合并结果。
+
+```java
 class MyTask extends RecursiveTask<Integer> {
     @Override
     protected Integer compute() {
-        // 任务逻辑
+        // 拆分+合并逻辑
+        return result;
     }
 }
 
 ForkJoinPool pool = new ForkJoinPool();
-MyTask task = new MyTask();
-pool.invoke(task);
-int result = task.get();
+Integer result = pool.invoke(new MyTask());
 ```
 
 ---
 
-# 四大函数式接口
+## 十二、四大函数式接口（Java 8）
 
-1. Consumer (消费者) 作用：消费数据，无返回值
+| 接口 | 名称 | 方法 | 参数 | 返回值 |
+|------|:----:|:----:|:----:|:------:|
+| `Consumer<T>` | 消费者 | `void accept(T t)` | ✅ | ❌ |
+| `Supplier<T>` | 供应者 | `T get()` | ❌ | ✅ |
+| `Function<T,R>` | 转换器 | `R apply(T t)` | ✅ | ✅ |
+| `Predicate<T>` | 判断器 | `boolean test(T t)` | ✅ | `boolean` |
 
-方法：void accept(T t)
+```java
+// Consumer：消费数据
+list.forEach(x -> System.out.println(x));
 
-示例：list.forEach(x -> System.out.println(x))
+// Supplier：提供数据
+Supplier<String> supplier = () -> "默认值";
 
-2. Supplier (供应者) 作用：提供数据，无参数
+// Function：数据转换
+Function<String, Integer> func = s -> s.length();
 
-方法：T get()
-
-示例：() -> "默认值"
-
-3. Function<T,R> (转换器)  
-    作用：数据转换，T→R
-
-方法：R apply(T t)
-
-示例：s -> s.length()
-
-4. Predicate (判断器) 作用：条件判断
-
-方法：boolean test(T t)
-
-示例：n -> n > 0
+// Predicate：条件判断
+Predicate<Integer> pred = n -> n > 0;
+```
 
 ---
 
-# JMM
+## 十三、JMM（Java 内存模型）
 
-java内存模型，不存在的东西，概念！
+> [!info] JMM 是一种**规范**（抽象概念），定义了多线程之间共享变量的访问规则，保证可见性、有序性、原子性。
 
-## 同步约定
+### 同步约定
 
-1、线程解锁前，必须把共享变量立刻刷回主存。
-
-2、加锁前，读取主存最新值到工作内存中。
-
-3、加锁和解锁是同一把锁。
-
-线程 **工作内存、主内存**
-
----
-
-# CAS
-
-CAS（Compare-And-Swap）是一种无锁的原子操作
-
-CAS工作原理
-
-1. 读取内存值V
-2. 比较V与预期值A
-3. 如果相等，则写入新值B
-4. 返回操作是否成功
-
-乐观锁（典型CAS，无锁操作）
-
-悲观锁（典型synchronized和lock）
+1. **解锁前**：必须将共享变量**立即刷回主存**
+2. **加锁前**：必须读取主存**最新值**到工作内存
+3. **加锁和解锁必须是同一把锁**
 
 ```
+          线程 A                         线程 B
+     ┌─────────────┐              ┌─────────────┐
+     │  工作内存    │              │  工作内存    │
+     │  (变量副本)   │              │  (变量副本)   │
+     └──────┬──────┘              └──────┬──────┘
+            │                            │
+            │        ╔══════════╗        │
+            └─────── ║  主内存   ║ ←──────┘
+                     ╚══════════╝
+```
+
+---
+
+## 十四、CAS（Compare-And-Swap）
+
+**CAS 是一种无锁的原子操作**，是乐观锁的实现基础。
+
+### 工作原理
+
+```
+① 读取内存值 V
+② 比较 V 与预期值 A
+③ 如果相等 → 写入新值 B（操作成功）
+   如果不相等 → 操作失败，返回 false
+```
+
+```java
 AtomicInteger atomicInt = new AtomicInteger(0);
-
-// CAS操作示例
-boolean success = atomicInt.compareAndSet(0, 1); // 如果当前值为0，则设置为1
+// CAS 操作：如果当前值为 0，则设置为 1
+boolean success = atomicInt.compareAndSet(0, 1);
 ```
 
-## ABA问题
+### 乐观锁 vs 悲观锁
 
-ABA问题描述的是这样一种情况：
+| 类型 | 代表 | 特点 |
+|:----:|:----:|------|
+| **乐观锁** | CAS、版本号 | 不加锁，冲突后重试，适合读多写少 |
+| **悲观锁** | `synchronized`、`Lock` | 加锁，阻塞等待，适合写多 |
 
-线程1读取内存位置V的值为A
+### ABA 问题
 
-线程1被挂起
+> [!warning] **ABA 问题描述**
+> 线程 1 读取值为 A，被挂起 → 线程 2 将 A 改为 B 又改回 A → 线程 1 恢复执行，CAS 发现还是 A，操作成功——但值实际上已经被修改过。
 
-线程2修改V的值为B，然后又修改回A
-
-线程1恢复执行，进行CAS操作，发现V的值仍然是A，于是操作成功
+**解决方案**：使用 `AtomicStampedReference`（带版本号的原子引用），每次修改版本号 +1。
