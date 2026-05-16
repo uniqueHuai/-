@@ -15,16 +15,20 @@
 
 ### 版本简史
 
-|      版本      |  发布时间   | 说明                                                |
-| :----------: | :-----: | ------------------------------------------------- |
-|  React 0.3   | 2013.5  | 首次开源                                              |
-| **React 16** | 2017.9  | Fiber 架构重写、Portal、Error Boundaries                |
-|  React 16.8  | 2019.2  | ⭐ **Hooks 发布**（函数组件革命）                            |
-| **React 17** | 2020.10 | 渐进升级、无新特性                                         |
-| **React 18** | 2022.3  | ⭐ Concurrent Mode、`useId`、自动 batching、Suspense    |
-|   React 19   | 2024.12 | Actions、`use()`、`useOptimistic`、Server Components |
+|      版本      |   发布时间   | 说明                                                |
+| :----------: | :--------: | ------------------------------------------------- |
+|  React 0.3   |   2013.5   | 首次开源                                              |
+| **React 16** |   2017.9   | Fiber 架构重写、Portal、Error Boundaries                |
+|  React 16.8  |   2019.2   | ⭐ **Hooks 发布**（函数组件革命）                            |
+| **React 17** |  2020.10   | 渐进升级、无新特性                                         |
+| **React 18** |   2022.3   | ⭐ Concurrent Mode、`useId`、自动 batching、Suspense    |
+| **React 19** |  2024.12   | ⭐ Actions、`use()`、`useOptimistic`、Server Components |
+|  React 19.1  |   2025.3   | ref 作为常规 prop、类型改进、性能优化                          |
+|  React 19.2  |  2025.10   | 并发特性增强、SSR 改进                                    |
+|  React 19.2.6|   2026.5   | ⭐ **最新稳定版**（持续修复）                                 |
+| **React 19.3**| 2026~  | 🔶 **Canary 阶段**，新 API 正在开发中                       |
 
-> [!warning] 目前 **React 18** 是主流生产版本，React 19 正在普及中。
+> [!tip] 目前 **React 19.2.x** 是生产稳定版，React 19.3 正在 canary 阶段。React 19 的 Server Components 和 Actions 已进入生产可用。
 
 ### 核心思想：虚拟 DOM
 
