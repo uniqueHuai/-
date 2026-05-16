@@ -4,20 +4,20 @@
   "title": "Use Obsidian with Git to sync notes",
   "titleGenerationStatus": "success",
   "createdAt": 1778902736381,
-  "updatedAt": 1778903248151,
-  "lastResponseAt": 1778903248151,
+  "updatedAt": 1778903821207,
+  "lastResponseAt": 1778903821207,
   "sessionId": "4fad896b-c515-4945-bf2f-bcc770d285a0",
   "providerState": {
     "providerSessionId": "4fad896b-c515-4945-bf2f-bcc770d285a0"
   },
   "usage": {
     "model": "haiku",
-    "inputTokens": 373,
+    "inputTokens": 710,
     "cacheCreationInputTokens": 0,
-    "cacheReadInputTokens": 53376,
+    "cacheReadInputTokens": 57856,
     "contextWindow": 200000,
-    "contextTokens": 53749,
-    "percentage": 27,
+    "contextTokens": 58566,
+    "percentage": 29,
     "contextWindowIsAuthoritative": true
   }
 }
