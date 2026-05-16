@@ -59,6 +59,242 @@ SET [SESSION | GLOBAL] TRANSACTION ISOLATION LEVEL
 
 ---
 
+## 二、数据类型与字段设计
+
+### 1. 数值类型
+
+```sql
+-- 整数类型（从最小到最大）
+TINYINT      -- 1字节  -128~127（有符号） / 0~255（无符号）
+SMALLINT     -- 2字节  -32768~32767
+MEDIUMINT    -- 3字节  -8388608~8388607
+INT          -- 4字节  -21亿~21亿
+BIGINT       -- 8字节  -2^63~2^63-1
+
+-- 无符号示例
+CREATE TABLE t (
+    age TINYINT UNSIGNED,   -- 年龄不会为负，用 UNSIGNED
+    status TINYINT          -- 状态可用有符号
+);
+
+-- 小数类型
+FLOAT(7,4)      -- 4字节，精度低，不推荐用于精确计算
+DECIMAL(10,2)   -- ⭐ 精确小数，用于金额（DECIMAL 是字符串存储，无精度损失）
+
+-- ⭐ 金额字段设计
+salary DECIMAL(10, 2)   -- 总长10位，小数2位：99999999.99
+price DECIMAL(8, 2)     -- 总长8位，小数2位：999999.99
+```
+
+### 2. 字符串类型
+
+```sql
+-- ⭐ char vs varchar 选择原则
+CHAR(n)         -- 定长，n≤255，速度更快，适合固定长度（手机号、身份证号）
+VARCHAR(n)      -- 变长，n≤65535，省空间，适合变长字段（姓名、地址）
+
+-- 实际区别
+CHAR(10) 'abc'  → 实际存储 'abc       '（定长，空格补齐）
+VARCHAR(10) 'abc' → 实际存储 'abc' + 1字节长度前缀（变长）
+
+-- 建议
+CHAR:   手机号(11)、身份证(18)、固定编码、MD5值(32)
+VARCHAR: 用户名(50)、邮箱(100)、地址(200)
+
+-- 其他字符串
+TINYTEXT     -- ≤255字节
+TEXT         -- ≤65535字节（2^16-1），适合文章正文
+MEDIUMTEXT   -- ≤16MB（2^24-1）
+LONGTEXT     -- ≤4GB（2^32-1）
+
+-- ⭐ TEXT 与 VARCHAR 的选择
+-- VARCHAR：会存入内存在排序时，适合短文本
+-- TEXT：单独存储，需额外 IO，无法设默认值
+-- ⚠️ 大字段不要和频繁查询的列放在同一张表（垂直拆分思路）
+```
+
+### 3. 日期时间类型
+
+```sql
+-- ⭐ 四种日期时间类型对比
+DATE        -- '2026-05-17'，3字节，范围 1000-01-01 ~ 9999-12-31
+TIME        -- '14:30:00'，3字节
+DATETIME    -- '2026-05-17 14:30:00'，8字节，不受时区影响 ⭐ 推荐
+TIMESTAMP   -- '2026-05-17 14:30:00'，4字节，受时区影响（自动转换 UTC）
+YEAR        -- '2026'，1字节
+
+-- 时间字段设计建议
+CREATE TABLE t (
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,   -- 创建时间
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP     -- 更新时间
+    ON UPDATE CURRENT_TIMESTAMP,
+    -- ⚠️ TIMESTAMP 2038 年问题：最大到 2038-01-19，新系统用 DATETIME
+);
+
+-- 常用时间函数
+NOW()        -- 当前日期时间
+CURDATE()    -- 当前日期
+CURTIME()    -- 当前时间
+DATE(t)      -- 提取日期部分
+TIME(t)      -- 提取时间部分
+YEAR(t)      -- 提取年份
+DATEDIFF(a, b)  -- 日期差
+DATE_ADD(t, INTERVAL 1 DAY)  -- 日期计算
+```
+
+### 4. 布尔与枚举
+
+```sql
+-- MySQL 没有真正的 BOOL，用 TINYINT(1) 替代
+is_active TINYINT(1) DEFAULT 1   -- 0=false, 1=true
+
+-- 枚举类型（不建议频繁使用，修改枚举值需要 ALTER TABLE）
+status ENUM('pending', 'active', 'disabled') DEFAULT 'pending'
+
+-- 推荐用 TINYINT 替代 ENUM（扩展更方便）
+status TINYINT DEFAULT 0   -- 0=pending, 1=active, 2=disabled
+```
+
+### 字段设计最佳实践
+
+```text
+✅ 推荐做法
+├── 字段用 NOT NULL（NULL 会使索引、比较、统计更复杂）
+├── 用明确 DEFAULT 值（避免 NULL 带来的不确定性）
+├── 金额用 DECIMAL，不用 FLOAT/DOUBLE
+├── 时间用 DATETIME，不用 TIMESTAMP（防 2038）
+├── 大文本用 TEXT 并单独拆表
+└── IP 地址用 INT UNSIGNED（INET_ATON() / INET_NTOA() 转换）
+
+❌ 避免做法
+├── 不要用 LONGTEXT 存大 JSON（考虑 MongoDB/ES）
+├── 不要用 VARCHAR 存手机号（应该用 CHAR(11)）
+├── 不要用 FLOAT 存金额（精度丢失）
+└── 不要用 0/1 表示多状态（用 TINYINT + 常量枚举）
+```
+
+---
+
+## 三、DDL 深入
+
+### 1. 建表完整语法
+
+```sql
+CREATE TABLE [IF NOT EXISTS] users (
+    id BIGINT UNSIGNED AUTO_INCREMENT COMMENT '主键',
+    username VARCHAR(50) NOT NULL COMMENT '用户名',
+    email VARCHAR(100) NOT NULL COMMENT '邮箱',
+    phone CHAR(11) COMMENT '手机号',
+    age TINYINT UNSIGNED DEFAULT 0 COMMENT '年龄',
+    salary DECIMAL(10,2) COMMENT '薪资',
+    status TINYINT DEFAULT 0 COMMENT '状态：0=正常 1=冻结',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    
+    -- 约束
+    PRIMARY KEY (id),                          -- 主键
+    UNIQUE KEY uk_email (email),               -- 唯一约束
+    INDEX idx_username (username),             -- 索引
+    INDEX idx_age_status (age, status),        -- 联合索引
+    CONSTRAINT chk_age CHECK (age >= 0 AND age < 150),  -- 检查约束 ⭐ 8.0+
+    FOREIGN KEY (dept_id) REFERENCES dept(id)  -- 外键（InnoDB）
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+```
+
+### 2. 修改表（ALTER TABLE）
+
+```sql
+-- 添加列
+ALTER TABLE users ADD COLUMN nick_name VARCHAR(50) AFTER username;
+ALTER TABLE users ADD COLUMN info JSON;  -- 8.0+ JSON 类型
+
+-- 修改列类型
+ALTER TABLE users MODIFY COLUMN username VARCHAR(100) NOT NULL;
+
+-- 重名列
+ALTER TABLE users CHANGE COLUMN nick_name nickname VARCHAR(50);
+
+-- 删除列
+ALTER TABLE users DROP COLUMN info;
+
+-- 添加索引
+ALTER TABLE users ADD INDEX idx_email (email);
+ALTER TABLE users ADD UNIQUE INDEX uk_phone (phone);
+
+-- 删除索引
+ALTER TABLE users DROP INDEX idx_email;
+
+-- 重命名表
+ALTER TABLE users RENAME TO members;
+```
+
+### 3. TRUNCATE vs DELETE vs DROP
+
+```sql
+-- ⭐ 三者区别（面试高频）
+TRUNCATE TABLE users;  -- 清空表，DDL，不能回滚，重置自增ID，速度快
+DELETE FROM users;     -- 删除所有行，DML，可回滚，不重置自增ID，速度慢
+DROP TABLE users;      -- 删除表结构+数据，DDL，不能回滚
+
+-- 带条件的 DELETE
+DELETE FROM users WHERE status = 2;
+```
+
+---
+
+## 四、DML 深入
+
+### 1. 插入高级用法
+
+```sql
+-- 基本插入
+INSERT INTO users (name, email) VALUES ('张三', 'zhangsan@test.com');
+
+-- 批量插入（⭐ 推荐，比逐条快 N 倍）
+INSERT INTO users (name, email) VALUES
+    ('张三', 'z@test.com'),
+    ('李四', 'l@test.com'),
+    ('王五', 'w@test.com');
+
+-- INSERT IGNORE —— 忽略重复键错误
+INSERT IGNORE INTO users (id, name) VALUES (1, '张三'), (1, '李四');
+-- 如果 id=1 已存在，不会报错，跳过重复行
+
+-- ⭐ REPLACE INTO —— 有则替换，无则插入
+REPLACE INTO users (id, name, email) VALUES (1, '张三', 'new@test.com');
+-- 等价于：DELETE + INSERT（如果主键/唯一键冲突）
+
+-- ⭐ INSERT ... ON DUPLICATE KEY UPDATE —— 有则更新，无则插入
+INSERT INTO users (id, name, email) VALUES (1, '张三', 'new@test.com')
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),      -- 如果 id 冲突，更新 name
+    email = VALUES(email);    -- 更新 email
+
+-- 业务场景：每日统计 upsert
+INSERT INTO daily_stats (date, pv, uv) VALUES (CURDATE(), 1, 1)
+ON DUPLICATE KEY UPDATE
+    pv = pv + 1,
+    uv = uv + (VALUES(uv));  -- UV 用 VALUES 取本次插入的值
+```
+
+### 2. 多表更新与删除
+
+```sql
+-- ⭐ 多表 UPDATE（基于关联条件更新）
+UPDATE orders o
+    JOIN users u ON o.user_id = u.id
+SET o.status = 2
+WHERE u.level = 'vip';
+
+-- 多表 DELETE（删除关联数据）
+DELETE u, o
+FROM users u
+    LEFT JOIN orders o ON u.id = o.user_id
+WHERE u.status = -1;  -- 删除已注销用户及其订单
+```
+
+---
+
 ## 二、MySQL 三大日志（高频重点）
 
 MySQL 有三大核心日志：**redo log**、**undo log**、**binlog**，分别服务于不同的目的。
@@ -402,7 +638,272 @@ UPDATE user SET name = 'Alice' WHERE name = 'Bob';
 
 ---
 
-## 七、视图 / 存储过程 / 触发器
+## 七、窗口函数 ⭐
+
+### 1. 什么是窗口函数
+
+**窗口函数（Window Function）** 是 MySQL 8.0+ 引入的**重量级特性**，能在不减少行数的情况下对结果集进行分组计算。普通 `GROUP BY` 会折叠行，窗口函数**不会**。
+
+```sql
+-- ⭐ GROUP BY vs 窗口函数的区别
+-- GROUP BY：每部门返回一行
+SELECT department, AVG(salary) FROM emp GROUP BY department;
+
+-- 窗口函数：每行都保留，额外返回部门平均薪资
+SELECT name, salary, department,
+       AVG(salary) OVER (PARTITION BY department) AS dept_avg
+FROM emp;
+```
+
+### 2. 基本语法
+
+```sql
+函数() OVER (
+    PARTITION BY 分组列    -- 分组（可选）
+    ORDER BY 排序列        -- 排序（可选）
+    ROWS/RANGE 窗口范围     -- 窗口范围（可选）
+)
+
+-- 如果不写 PARTITION BY，整个结果集作为一个窗口
+-- 如果不写 ORDER BY，窗口内所有行在同一等级
+```
+
+### 3. 排名函数
+
+```sql
+-- ⭐ 三种排名函数对比（面试高频）
+SELECT name, salary, department,
+    ROW_NUMBER() OVER (        -- 1, 2, 3, 4（唯一且连续，无并列）
+        PARTITION BY department
+        ORDER BY salary DESC
+    ) AS row_num,
+    RANK() OVER (              -- 1, 1, 3, 4（并列跳跃）
+        PARTITION BY department
+        ORDER BY salary DESC
+    ) AS rk,
+    DENSE_RANK() OVER (        -- 1, 1, 2, 3（并列不跳跃）
+        PARTITION BY department
+        ORDER BY salary DESC
+    ) AS dense_rk
+FROM emp;
+
+-- 示例结果：
+-- name    salary  dept   row_num  rank  dense_rank
+-- 张三    50000   IT      1       1       1
+-- 李四    50000   IT      2       1       1   ← ROW_NUMBER 区分并列
+-- 王五    45000   IT      3       3       2   ← RANK 跳过2
+-- 赵六    40000   IT      4       4       3
+
+-- ⭐ 常用场景：分组取 Top N
+SELECT * FROM (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY department
+            ORDER BY salary DESC
+        ) AS rn
+    FROM emp
+) t WHERE t.rn <= 3;  -- 每个部门薪资前三
+```
+
+### 4. 聚合窗口函数
+
+```sql
+-- ⭐ 累积求和 —— 常用于财务报表
+SELECT date, amount,
+    SUM(amount) OVER (ORDER BY date) AS cumulative_sum
+FROM sales;
+
+-- 移动平均 —— 常用于趋势分析
+SELECT date, amount,
+    AVG(amount) OVER (
+        ORDER BY date
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    ) AS moving_avg_7day
+FROM sales;
+
+-- 分组内占比
+SELECT name, department, salary,
+    ROUND(salary / SUM(salary) OVER (PARTITION BY department) * 100, 1) AS pct
+FROM emp;
+```
+
+### 5. 偏移函数
+
+```sql
+-- ⭐ LAG / LEAD —— 获取前/后行的值（同比环比、前后对比）
+SELECT date, amount,
+    LAG(amount, 1) OVER (ORDER BY date) AS prev_day,      -- 前一天
+    LAG(amount, 7) OVER (ORDER BY date) AS prev_week,     -- 前7天
+    LEAD(amount, 1) OVER (ORDER BY date) AS next_day,     -- 后一天
+    -- 环比增长率
+    ROUND((amount - LAG(amount, 1) OVER (ORDER BY date))
+        / LAG(amount, 1) OVER (ORDER BY date) * 100, 2) AS growth_rate
+FROM sales;
+
+-- FIRST_VALUE / LAST_VALUE —— 窗口内首尾值
+SELECT name, department, salary,
+    FIRST_VALUE(name) OVER (PARTITION BY department ORDER BY salary DESC) AS highest_paid,
+    LAST_VALUE(name) OVER (
+        PARTITION BY department ORDER BY salary DESC
+        ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+    ) AS lowest_paid       -- ⚠️ LAST_VALUE 需要指定窗口范围
+FROM emp;
+
+-- NTILE —— 分桶函数（常用于四分位、九宫格）
+SELECT name, salary,
+    NTILE(4) OVER (ORDER BY salary DESC) AS quartile  -- 按薪资分4档
+FROM emp;
+```
+
+### 6. 窗口函数实战场景
+
+```sql
+-- ⭐ 场景1：用户连续签到天数（经典面试题）
+WITH user_logins AS (
+    SELECT user_id, login_date,
+        ROW_NUMBER() OVER (
+            PARTITION BY user_id ORDER BY login_date
+        ) AS rn,
+        DATE_SUB(login_date, INTERVAL ROW_NUMBER() OVER (
+            PARTITION BY user_id ORDER BY login_date
+        ) DAY) AS group_id
+    FROM login_records
+)
+SELECT user_id, group_id,
+    MIN(login_date) AS start_date,
+    MAX(login_date) AS end_date,
+    COUNT(*) AS consecutive_days
+FROM user_logins
+GROUP BY user_id, group_id
+HAVING COUNT(*) >= 3;  -- 连续签到3天以上
+
+-- ⭐ 场景2：查询每个用户的最近一次登录
+SELECT user_id, login_date
+FROM (
+    SELECT user_id, login_date,
+        ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY login_date DESC) AS rn
+    FROM login_records
+) t WHERE rn = 1;
+```
+
+---
+
+## 八、子查询与 CTE
+
+### 1. 子查询类型
+
+```sql
+-- 标量子查询（返回单行单列）
+SELECT name, salary,
+    (SELECT AVG(salary) FROM emp) AS avg_salary
+FROM emp;
+
+-- 行子查询（返回单行多列）
+SELECT * FROM emp
+WHERE (department, salary) = (
+    SELECT department, MAX(salary) FROM emp GROUP BY department LIMIT 1
+);
+
+-- 表子查询（返回多行多列）
+SELECT * FROM (
+    SELECT department, AVG(salary) AS avg_sal
+    FROM emp GROUP BY department
+) AS dept_stats
+WHERE avg_sal > 10000;
+
+-- EXISTS 子查询（⭐ 比 IN 更高效，存在即返回）
+SELECT * FROM departments d
+WHERE EXISTS (
+    SELECT 1 FROM emp e WHERE e.dept_id = d.id
+);
+```
+
+### 2. EXISTS vs IN 选择
+
+```sql
+-- ⭐ 选择原则
+-- 外层表大、内层表小 → 用 IN
+SELECT * FROM orders WHERE user_id IN (1, 2, 3);
+
+-- 外层表小、内层表大 → 用 EXISTS
+SELECT * FROM users u
+WHERE EXISTS (SELECT 1 FROM orders o WHERE o.user_id = u.id);
+
+-- NOT EXISTS vs NOT IN（⚠️ NOT IN 遇到 NULL 会全表返回空！）
+-- ❌ NOT IN 陷阱
+SELECT * FROM users WHERE id NOT IN (1, 2, NULL);  -- 结果为空！
+
+-- ✅ 推荐用 NOT EXISTS
+SELECT * FROM users u
+WHERE NOT EXISTS (SELECT 1 FROM blacklist b WHERE b.user_id = u.id);
+```
+
+### 3. CTE（公用表表达式）
+
+```sql
+-- ⭐ WITH —— CTE，让复杂查询更清晰
+-- 等价于子查询，但可复用、可递归、更易读
+
+-- 基本 CTE
+WITH dept_avg AS (
+    SELECT department, AVG(salary) AS avg_sal
+    FROM emp GROUP BY department
+)
+SELECT e.name, e.salary, d.avg_sal,
+    ROUND(e.salary - d.avg_sal) AS diff
+FROM emp e
+JOIN dept_avg d ON e.department = d.department;
+
+-- 多个 CTE（用逗号分隔）
+WITH
+    high_salary AS (
+        SELECT * FROM emp WHERE salary > 20000
+    ),
+    it_dept AS (
+        SELECT * FROM emp WHERE department = 'IT'
+    )
+SELECT * FROM high_salary
+UNION
+SELECT * FROM it_dept;
+```
+
+### 4. 递归 CTE ⭐
+
+```sql
+-- ⭐ WITH RECURSIVE —— 树形结构查询（组织架构、评论、分类）
+-- 8.0+ 支持，之前版本只能用存储过程+临时表
+
+-- 场景：查询组织树
+WITH RECURSIVE org_tree AS (
+    SELECT id, name, parent_id, 1 AS level
+    FROM organization
+    WHERE parent_id IS NULL
+
+    UNION ALL
+
+    SELECT o.id, o.name, o.parent_id, t.level + 1
+    FROM organization o
+    JOIN org_tree t ON o.parent_id = t.id
+)
+SELECT * FROM org_tree ORDER BY level, id;
+
+-- 场景：生成连续日期序列（填充报表空缺）
+WITH RECURSIVE dates AS (
+    SELECT '2026-01-01' AS dt
+    UNION ALL
+    SELECT DATE_ADD(dt, INTERVAL 1 DAY)
+    FROM dates WHERE dt < '2026-12-31'
+)
+SELECT d.dt, IFNULL(SUM(s.amount), 0) AS daily_sales
+FROM dates d
+LEFT JOIN sales s ON DATE(s.created_at) = d.dt
+GROUP BY d.dt
+ORDER BY d.dt;
+```
+
+---
+
+## 九、视图 / 存储过程 / 触发器
 
 ### 1. 视图（View）
 
@@ -454,6 +955,76 @@ AFTER INSERT ON tb FOR EACH ROW
 BEGIN
     -- 插入日志表
 END;
+```
+
+---
+
+## 九、字符集与排序规则
+
+### 1. utf8mb4 为什么是必选项
+
+```sql
+-- ⭐ 永远用 utf8mb4，不要用 utf8
+-- MySQL 的 utf8 是"假 utf8"，最大只支持3字节，存不了 emoji 和生僻字
+-- utf8mb4 才是真正的 4 字节 UTF-8
+
+-- 数据库级别
+CREATE DATABASE mydb
+    DEFAULT CHARACTER SET utf8mb4
+    DEFAULT COLLATE utf8mb4_unicode_ci;
+
+-- 表级别
+CREATE TABLE users (
+    name VARCHAR(100)
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 查看字符集
+SHOW VARIABLES LIKE 'character_set_%';
+SHOW VARIABLES LIKE 'collation_%';
+```
+
+### 2. 排序规则选择
+
+```sql
+-- ⭐ 三种常见 collation 对比
+utf8mb4_unicode_ci          -- 基于 Unicode 标准排序，通用推荐
+utf8mb4_general_ci          -- 旧版，排序略快但不准确（不推荐）
+utf8mb4_0900_ai_ci          -- ⭐ MySQL 8.0+ 默认，基于 UCA 9.0，更准确
+
+-- 区别示例
+-- utf8mb4_general_ci：a=A, ß=s（简单）
+-- utf8mb4_unicode_ci：a=A, ß=ss（更准确）
+-- utf8mb4_0900_ai_ci：a=A, à=â（区分口音）
+
+-- 建议：
+-- MySQL 5.7：utf8mb4 + utf8mb4_unicode_ci
+-- MySQL 8.0+：utf8mb4 + utf8mb4_0900_ai_ci ⭐
+
+-- 排序规则影响排序结果
+SELECT 'a' = 'A' COLLATE utf8mb4_bin;          -- 0（区分大小写）
+SELECT 'a' = 'A' COLLATE utf8mb4_unicode_ci;   -- 1（不区分大小写）
+```
+
+### 3. 字符集相关陷阱
+
+```sql
+-- ⚠️ 连接字符集导致乱码
+-- 设置客户端/连接/结果字符集一致
+SET NAMES utf8mb4;
+
+-- 查看当前连接字符集
+SHOW VARIABLES LIKE 'character_set_client';
+SHOW VARIABLES LIKE 'character_set_connection';
+SHOW VARIABLES LIKE 'character_set_results';
+
+-- 推荐：在连接池或 ORM 配置中指定
+-- JDBC: jdbc:mysql://host/db?useUnicode=true&characterEncoding=utf8mb4
+-- Spring: spring.datasource.url=jdbc:mysql://host/db?useUnicode=true&characterEncoding=utf8mb4
+
+-- ⚠️ 修改表字符集注意事项
+-- 只改 DEFAULT CHARSET 不影响已有列
+ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4;  -- 重建所有列
+ALTER TABLE users DEFAULT CHARACTER SET utf8mb4;      -- 只改默认，不影响已有列
 ```
 
 ---
