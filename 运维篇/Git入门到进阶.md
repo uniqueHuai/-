@@ -817,27 +817,27 @@ git stash pop
 
 ### 常用命令速查表
 
-| 操作 | 命令 |
-|:----:|:----:|
-| 初始化仓库 | `git init` |
-| 克隆仓库 | `git clone <url>` |
-| 查看状态 | `git status` |
-| 添加文件 | `git add <file>` |
-| 提交 | `git commit -m "msg"` |
-| 推送 | `git push origin <branch>` |
-| 拉取 | `git pull --rebase` |
-| 创建分支 | `git branch <name>` |
-| 切换分支 | `git checkout <name>` |
-| 创建并切换 | `git checkout -b <name>` |
-| 合并分支 | `git merge <branch>` |
-| 查看历史 | `git log --oneline --graph` |
-| 暂存修改 | `git stash` |
-| 恢复修改 | `git stash pop` |
-| 撤销暂存 | `git reset HEAD <file>` |
-| 撤销提交（保留修改） | `git reset --soft HEAD~1` |
-| 撤销提交（丢弃修改） | `git reset --hard HEAD~1` |
-| 反向撤销（安全） | `git revert HEAD` |
-| 查看引用日志 | `git reflog` |
+|     操作     |             命令              |
+| :--------: | :-------------------------: |
+|   初始化仓库    |         `git init`          |
+|    克隆仓库    |      `git clone <url>`      |
+|    查看状态    |        `git status`         |
+|    添加文件    |      `git add <file>`       |
+|     提交     |    `git commit -m "msg"`    |
+|     推送     | `git push origin <branch>`  |
+|     拉取     |     `git pull --rebase`     |
+|    创建分支    |     `git branch <name>`     |
+|    切换分支    |    `git checkout <name>`    |
+|   创建并切换    |  `git checkout -b <name>`   |
+|    合并分支    |    `git merge <branch>`     |
+|    查看历史    | `git log --oneline --graph` |
+|    暂存修改    |         `git stash`         |
+|    恢复修改    |       `git stash pop`       |
+|    撤销暂存    |   `git reset HEAD <file>`   |
+| 撤销提交（保留修改） |  `git reset --soft HEAD~1`  |
+| 撤销提交（丢弃修改） |  `git reset --hard HEAD~1`  |
+|  反向撤销（安全）  |      `git revert HEAD`      |
+|   查看引用日志   |        `git reflog`         |
 
 ---
 
