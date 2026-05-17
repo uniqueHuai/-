@@ -295,7 +295,7 @@ WHERE u.status = -1;  -- 删除已注销用户及其订单
 
 ---
 
-## 二、MySQL 三大日志（高频重点）
+## 五、MySQL 三大日志（高频重点）
 
 MySQL 有三大核心日志：**redo log**、**undo log**、**binlog**，分别服务于不同的目的。
 
@@ -375,7 +375,7 @@ SHOW BINLOG EVENTS IN 'mysql-bin.000001' LIMIT 10;
 
 ---
 
-## 三、两阶段提交（2PC — 保证 redo log 与 binlog 一致）
+## 六、两阶段提交（2PC — 保证 redo log 与 binlog 一致）
 
 > [!info] **为什么需要两阶段提交？**
 > redo log 和 binlog 是两个独立的日志。如果写完 redo log 后、写 binlog 前宕机，主从复制就会不一致。**两阶段提交（2PC）** 保证了它们的**逻辑一致性**。
@@ -408,7 +408,7 @@ SHOW BINLOG EVENTS IN 'mysql-bin.000001' LIMIT 10;
 
 ---
 
-## 四、存储引擎
+## 七、存储引擎
 
 ### 1. 常见存储引擎对比
 
@@ -430,7 +430,7 @@ SHOW BINLOG EVENTS IN 'mysql-bin.000001' LIMIT 10;
 
 ---
 
-## 五、索引
+## 八、索引
 
 ### 1. 概念
 
@@ -568,7 +568,7 @@ CREATE INDEX idx_email_prefix ON user(email(10));
 
 ---
 
-## 六、SQL 优化
+## 九、SQL 优化
 
 ### 1. 批量插入
 
@@ -638,7 +638,7 @@ UPDATE user SET name = 'Alice' WHERE name = 'Bob';
 
 ---
 
-## 七、窗口函数 ⭐
+## 十、窗口函数 ⭐
 
 ### 1. 什么是窗口函数
 
@@ -788,7 +788,7 @@ FROM (
 
 ---
 
-## 八、子查询与 CTE
+## 十一、子查询与 CTE
 
 ### 1. 子查询类型
 
@@ -903,7 +903,7 @@ ORDER BY d.dt;
 
 ---
 
-## 九、视图 / 存储过程 / 触发器
+## 十二、视图 / 存储过程 / 触发器
 
 ### 1. 视图（View）
 
@@ -959,7 +959,7 @@ END;
 
 ---
 
-## 九、字符集与排序规则
+## 十三、字符集与排序规则
 
 ### 1. utf8mb4 为什么是必选项
 
@@ -1029,7 +1029,7 @@ ALTER TABLE users DEFAULT CHARACTER SET utf8mb4;      -- 只改默认，不影�
 
 ---
 
-## 八、锁
+## 十四、锁
 
 ### 1. 全局锁
 
@@ -1059,7 +1059,7 @@ FLUSH TABLES WITH READ LOCK;  -- 加全局锁（只读）
 
 ---
 
-## 九、InnoDB 引擎
+## 十五、InnoDB 引擎
 
 ### 1. 逻辑存储结构
 
@@ -1111,7 +1111,7 @@ max_trx_id：下一个要分配的事务 ID
 
 ---
 
-## 十、主从复制 ⭐
+## 十六、主从复制 ⭐
 
 ### 1. 复制原理
 
@@ -1166,7 +1166,7 @@ SHOW SLAVE STATUS\G
 
 ---
 
-## 十一、读写分离
+## 十七、读写分离
 
 ### 基本架构
 
@@ -1194,7 +1194,7 @@ SHOW SLAVE STATUS\G
 
 ---
 
-## 十二、分库分表 ⭐
+## 十八、分库分表 ⭐
 
 ### 1. 为什么要分库分表？
 
@@ -1235,7 +1235,341 @@ SHOW SLAVE STATUS\G
 
 ---
 
-## 十三、MySQL 管理常用命令
+## 十九、用户与权限管理
+
+### 1. 用户管理
+
+```sql
+-- 创建用户
+CREATE USER 'app_user'@'localhost' IDENTIFIED BY 'password123';
+CREATE USER 'app_user'@'%' IDENTIFIED BY 'password123';  -- 任意主机
+
+-- 删除用户
+DROP USER 'app_user'@'localhost';
+
+-- 修改密码
+ALTER USER 'app_user'@'localhost' IDENTIFIED BY 'new_password';
+
+-- 查看用户
+SELECT user, host, account_locked, password_expired
+FROM mysql.user;
+
+-- 锁定/解锁用户
+ALTER USER 'app_user'@'localhost' ACCOUNT LOCK;
+ALTER USER 'app_user'@'localhost' ACCOUNT UNLOCK;
+```
+
+### 2. 权限管理
+
+```sql
+-- ⭐ MySQL 权限层级（从宽到窄）
+-- 全局权限（*.*），数据库权限（db.*），表权限（db.table），列权限
+
+-- 授予权限
+GRANT SELECT, INSERT, UPDATE ON mydb.* TO 'app_user'@'localhost';
+GRANT ALL PRIVILEGES ON mydb.* TO 'admin'@'localhost';
+GRANT SELECT (name, email) ON mydb.users TO 'readonly'@'%';  -- 列级权限
+
+-- 查看权限
+SHOW GRANTS FOR 'app_user'@'localhost';
+SHOW GRANTS FOR CURRENT_USER();
+
+-- 回收权限
+REVOKE DELETE ON mydb.* FROM 'app_user'@'localhost';
+REVOKE ALL PRIVILEGES ON mydb.* FROM 'app_user'@'localhost';
+
+-- 刷新权限（使修改立即生效）
+FLUSH PRIVILEGES;
+```
+
+### 3. 权限最佳实践
+
+```text
+✅ 权限设计原则
+├── 最小权限原则：只给必要的权限
+├── 应用账号区分：读写账号 / 只读账号 / 管理账号
+├── 限制登录主机：应用服务器用内网 IP，不用 %
+├── 定期审查权限：清理闲置账号和过期权限
+└── 不要用 root 连接应用
+
+推荐的应用账号配置
+├── 读写账号：SELECT, INSERT, UPDATE, DELETE（业务库）
+├── 只读账号：SELECT（报表/查询）
+├── 管理账号：ALL PRIVILEGES（DBA 使用）
+└── 备份账号：SELECT, RELOAD, LOCK TABLES, REPLICATION CLIENT
+```
+
+---
+
+## 二十、SQL_MODE
+
+### 1. 什么是 SQL_MODE
+
+```sql
+-- SQL_MODE 定义了 MySQL 的 SQL 语法和行为规则
+-- 不同版本的默认值不同，了解它避免"开发环境正常，生产环境报错"
+
+-- 查看当前 SQL_MODE
+SELECT @@GLOBAL.sql_mode;
+SELECT @@SESSION.sql_mode;
+
+-- 设置 SQL_MODE
+SET GLOBAL sql_mode = 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
+SET SESSION sql_mode = 'STRICT_TRANS_TABLES';
+```
+
+### 2. 常用 SQL_MODE 说明
+
+| 模式 | 说明 | 建议 |
+|:----|:-----|:----|
+| **STRICT_TRANS_TABLES** | ⭐ 事务表启用严格模式，数据溢出/非法值报错而非警告 | ✅ 必开 |
+| **NO_ENGINE_SUBSTITUTION** | 指定的存储引擎不可用时报错，不自动替换 | ✅ 必开 |
+| **ONLY_FULL_GROUP_BY** | ⭐ GROUP BY 查询中，SELECT 列必须在 GROUP BY 中或聚合函数内 | ✅ 推荐开 |
+| **NO_ZERO_DATE** | 不允许 '0000-00-00' 日期 | ✅ 推荐开 |
+| **NO_ZERO_IN_DATE** | 不允许日期中有零值（如 '2026-00-01'） | ✅ 推荐开 |
+| **PIPES_AS_CONCAT** | 将 `||` 视为字符串连接符而非 OR（像 SQL Server） | ❌ 默认不开 |
+| **ANSI_QUOTES** | 将双引号视为标识符引用符而非字符串 | ❌ 看团队规范 |
+| **STRICT_ALL_TABLES** | 所有表启用严格模式（包括非事务表） | ✅ 推荐 |
+
+```sql
+-- ⚠️ ONLY_FULL_GROUP_BY 陷阱
+-- 8.0 默认开启，5.7 默认开启，5.6 默认不开启
+
+-- ❌ 报错（name 不在 GROUP BY 中且非聚合）
+SELECT department, name, AVG(salary)
+FROM emp GROUP BY department;
+
+-- ✅ 正确写法
+SELECT department, AVG(salary)
+FROM emp GROUP BY department;
+
+-- ✅ 或用 ANY_VALUE() 绕过（确认值唯一时）
+SELECT department, ANY_VALUE(name), AVG(salary)
+FROM emp GROUP BY department;
+```
+
+### 推荐配置
+
+```ini
+# my.cnf 推荐配置（MySQL 8.0+）
+[mysqld]
+sql_mode = STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+```
+
+---
+
+## 二十一、JSON 数据类型
+
+### 1. JSON 类型优势
+
+```sql
+-- ⭐ MySQL 8.0+ 原生 JSON 类型
+-- 优势：自动校验 JSON 合法性、可索引、高效部分更新
+
+CREATE TABLE products (
+    id BIGINT PRIMARY KEY,
+    name VARCHAR(200),
+    attributes JSON,       -- ⭐ 灵活属性，避免频繁 ALTER TABLE
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 插入 JSON 数据
+INSERT INTO products VALUES (
+    1,
+    '笔记本电脑',
+    '{"brand": "Lenovo", "specs": {"cpu": "i7", "ram": "16GB", "disk": "512GB"}, "color": "silver"}'
+);
+```
+
+### 2. JSON 查询与操作
+
+```sql
+-- JSON 查询函数
+SELECT
+    id,
+    name,
+    JSON_EXTRACT(attributes, '$.brand') AS brand,        -- "Lenovo"
+    attributes->'$.brand' AS brand,                       -- ⭐ 简写
+    attributes->>'$.brand' AS brand_str,                  -- ⭐ 去引号
+    attributes->'$.specs.cpu' AS cpu,
+    JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.color')) AS color
+FROM products;
+
+-- JSON 条件查询
+SELECT * FROM products
+WHERE attributes->>'$.brand' = 'Lenovo';
+
+-- JSON 数组查询
+SELECT * FROM products
+WHERE JSON_CONTAINS(attributes->'$.tags', '"新品"');
+
+-- JSON 索引（⭐ 虚拟列 + 索引）
+ALTER TABLE products ADD COLUMN brand VARCHAR(50)
+    GENERATED ALWAYS AS (attributes->>'$.brand') STORED;
+
+CREATE INDEX idx_brand ON products(brand);
+
+-- 现在可以直接按 brand 查询，走索引
+SELECT * FROM products WHERE brand = 'Lenovo';
+
+-- JSON 更新
+UPDATE products
+SET attributes = JSON_SET(attributes, '$.price', 9999)
+WHERE id = 1;
+
+-- JSON 追加
+UPDATE products
+SET attributes = JSON_ARRAY_APPEND(attributes, '$.tags', '热销')
+WHERE id = 1;
+
+-- JSON 删除键
+UPDATE products
+SET attributes = JSON_REMOVE(attributes, '$.color')
+WHERE id = 1;
+```
+
+### 3. JSON 使用场景
+
+```text
+✅ 适合用 JSON
+├── 字段属性不固定（商品属性、配置项）
+├── 第三方 API 响应（直接存原始 JSON）
+├── 日志/事件数据（schema-on-read）
+├── 避免频繁 ALTER TABLE（新属性直接加在 JSON 里）
+└── 简单文档存储（不需要 MongoDB 复杂度时）
+
+❌ 不适合用 JSON
+├── 需要 JOIN 关联的数据（JSON 字段不能直接 JOIN）
+├── 需要频繁更新单个属性的高频场景（JSON_SET 性能不如普通列）
+├── 需要排序、聚合的字段（JSON 提取列排序不如普通列）
+└── 数据量极大的场景（JSON 占用空间比普通列大）
+```
+
+---
+
+## 二十二、备份与恢复
+
+### 1. mysqldump 逻辑备份
+
+```bash
+# ⭐ 常用备份命令
+
+# 备份单库
+mysqldump -u root -p mydb > mydb_backup.sql
+
+# 备份多库
+mysqldump -u root -p --databases db1 db2 > dbs_backup.sql
+
+# 备份所有库
+mysqldump -u root -p --all-databases > all_backup.sql
+
+# ⭐ 只备份表结构（不备份数据）
+mysqldump -u root -p --no-data mydb > mydb_schema.sql
+
+# ⭐ 只备份数据（不备份结构）
+mysqldump -u root -p --no-create-info mydb > mydb_data.sql
+
+# ⭐ InnoDB 热备份（不锁表）
+mysqldump -u root -p --single-transaction mydb > mydb_hot.sql
+# --single-transaction：利用 MVCC 快照，不阻塞读写 ⭐ 推荐
+
+# 指定表
+mysqldump -u root -p mydb users orders > tables_backup.sql
+
+# 压缩备份
+mysqldump -u root -p mydb | gzip > mydb_backup.sql.gz
+
+# 恢复
+mysql -u root -p mydb < mydb_backup.sql
+# 从压缩包恢复
+gunzip -c mydb_backup.sql.gz | mysql -u root -p mydb
+
+# 远程备份
+mysqldump -h host -u root -p mydb > remote_backup.sql
+```
+
+### 2. 物理备份
+
+```bash
+# ⭐ 物理备份 vs 逻辑备份
+# 逻辑备份（mysqldump）：SQL 语句，可跨版本，速度慢，体积大
+# 物理备份（直接拷贝文件）：速度快，体积小，需同版本
+
+# 使用 XtraBackup（Percona 官方工具，推荐生产环境）
+# 全量备份
+xtrabackup --backup --target-dir=/backup/mysql/full/
+
+# 增量备份（基于 LSN）
+xtrabackup --backup --target-dir=/backup/mysql/inc1/ \
+    --incremental-basedir=/backup/mysql/full/
+
+# 准备恢复
+xtrabackup --prepare --target-dir=/backup/mysql/full/
+
+# 恢复
+xtrabackup --copy-back --target-dir=/backup/mysql/full/
+```
+
+### 3. binlog 增量恢复
+
+```bash
+# ⭐ 基于 binlog 的时间点恢复
+
+# 查看 binlog 列表
+mysql -e "SHOW BINARY LOGS;"
+
+# 将 binlog 转为可读的 SQL
+mysqlbinlog mysql-bin.000001 > binlog_001.sql
+
+# 按时间点恢复（比如误删数据后恢复到删除前的状态）
+mysqlbinlog --stop-datetime="2026-05-17 14:00:00" \
+    mysql-bin.000001 | mysql -u root -p
+
+# 按位置恢复
+mysqlbinlog --stop-position=12345 mysql-bin.000001 | mysql -u root -p
+
+# 完整恢复流程：全量备份 + binlog 增量
+# 1. 恢复最近的 mysqldump 全量备份
+mysql -u root -p mydb < mydb_backup.sql
+
+# 2. 应用 binlog 增量（从备份时间点到故障前）
+mysqlbinlog --start-datetime="2026-05-16 03:00:00" \
+    --stop-datetime="2026-05-17 13:59:00" \
+    mysql-bin.000001 mysql-bin.000002 | mysql -u root -p mydb
+```
+
+### 4. 备份策略
+
+```text
+企业级备份策略
+═══════════════════════════════════════
+
+日常备份
+├── 每天凌晨：mysqldump --single-transaction 全量备份
+├── 保留最近 7 天全量
+└── binlog 实时同步到独立存储
+
+周备份
+├── 每周日：XtraBackup 物理全量备份
+└── 保留最近 4 周
+
+月备份
+├── 每月1日：全量备份归档
+└── 保留最近 12 个月
+
+恢复演练
+├── 每季度：从备份搭建从库，验证数据完整性
+└── 每年：完整容灾演练
+
+3-2-1 原则
+├── 至少 3 份副本
+├── 至少 2 种不同介质
+└── 至少 1 份异地存储
+```
+
+---
+
+## 二十三、MySQL 管理常用命令
 
 ```sql
 -- 查看数据库版本
