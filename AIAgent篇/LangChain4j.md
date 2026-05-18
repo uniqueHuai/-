@@ -293,3 +293,8 @@ public class LangChain4jService {
 
 > [!tip] **使用建议**
 > 对于你（Java + Spring Boot 开发者），**推荐首选 Spring AI**。Spring AI 1.6.x 已经非常成熟，覆盖了 90% 的 AI Agent 开发需求，且与 Spring Boot 生态无缝衔接。LangChain4j 可以作为补充参考，当 Spring AI 不支持的特定功能时再考虑引入。
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

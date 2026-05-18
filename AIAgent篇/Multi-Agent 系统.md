@@ -723,3 +723,8 @@ public class MultiAgentConfig {
 > 2. **实践**：用 Spring AI 实现 Supervisor 模式 → Pipeline 模式
 > 3. **深入**：Agent 间通信协议 → 任务分解与分配算法
 > 4. **工程化**：编排器设计 → 可观测性 → 容错机制 → 成本控制
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

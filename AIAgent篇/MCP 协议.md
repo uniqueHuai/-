@@ -688,3 +688,8 @@ public Function<DeleteUserRequest, String> deleteUser() {
 > 2. **实践**：用 Spring AI @Tool 写一个 MCP Server → 用 MCP Client 连接它
 > 3. **深入**：stdio vs SSE 传输 → 多 Server 编排 → MCP Registry 使用
 > 4. **工程化**：企业 MCP 架构设计 → 安全加固 → 监控与审计
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

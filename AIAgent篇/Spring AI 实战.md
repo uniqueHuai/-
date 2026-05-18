@@ -676,3 +676,8 @@ spring:
 > 2. **进阶**：@Tool Function Calling → 结构化输出 Entity → 多模型切换
 > 3. **深入**：RAG 索引+查询 → Agentic RAG → Advisor 自定义拦截链
 > 4. **工程化**：多环境配置 → 重试熔断 → Actuator 监控 → 生产部署
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

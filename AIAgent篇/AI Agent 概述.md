@@ -420,3 +420,8 @@ public Guardrails agentGuardrails() {
 > 2. **实践**：用 Spring AI 写第一个 Tool-Use Agent → 尝试简单的 Multi-Agent
 > 3. **深入**：研究推理模式（ReAct/Reflexion）→ 学习 RAG + Agent 整合
 > 4. **工程化**：Agent 安全 → 可观测性 → 评估体系 → 生产部署
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

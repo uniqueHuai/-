@@ -318,3 +318,8 @@ Python 框架（LangChain/LangGraph/CrewAI）
 
 > [!tip] **给 Java 开发者的建议**
 > 了解 Python 框架的**核心概念**比学会 API 更重要。LangChain 的 Chain/Agent/Tool 思想已经被 Spring AI 借鉴吸收。当你遇到 Spring AI 不支持的场景时，可以看看 Python 框架是如何设计的，再在 Java 中用类似思路实现。
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

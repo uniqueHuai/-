@@ -760,3 +760,8 @@ public class SemanticCacheService {
 > 2. **进阶**：查询转换 → 分块优化 → 混合检索 → Rerank
 > 3. **深入**：Agentic RAG → 多步推理 → RAG-Fusion → Self-RAG
 > 4. **工程化**：生产 Pipeline → 评估体系 → 缓存策略 → 监控
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

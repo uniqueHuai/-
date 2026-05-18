@@ -698,3 +698,8 @@ public double evaluateResponse(String prompt, String response) {
 > 2. **进阶**：CoT 思维链 → 结构化输出 → 分步引导 → 负面提示
 > 3. **深入**：ReAct 模式 → ToT → Reflexion → Tool Calling Prompt
 > 4. **工程化**：迭代优化流程 → 回归测试 → 安全防护 → LLM-as-a-Judge 评估
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]

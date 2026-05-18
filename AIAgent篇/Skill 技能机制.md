@@ -711,3 +711,8 @@ public class DataAnalysisAgent {
 
 > [!note] **术语变迁说明**
 > Semantic Kernel 在 2024 年将 "Skill" 更名为 "Plugin"，但社区和其他框架仍广泛使用 "Skill" 一词。本笔记中两者视为同一概念——都是"一组相关能力的集合"。MCP 协议的广泛采用（2025-2026）进一步推动了 Skill 的标准化，使得不同语言和框架间的 Skill 可以互操作。
+
+
+---
+
+> **📖 学习路线**：[[AIAgent篇/README|AI Agent 学习路线图]]
