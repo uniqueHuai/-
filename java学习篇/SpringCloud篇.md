@@ -234,3 +234,7 @@ Seata 通过 **AT 模式**（自动补偿）实现分布式事务，核心流程
 1. 引入 `seata-all` 依赖
 2. 配置 `file.conf` 和 `registry.conf`
 3. 在全局事务入口方法加 `@GlobalTransactional`
+
+---
+
+> **📖 学习路线**：[[README]] | **上一篇**：[[SpringBoot篇]] | **下一篇**：[[登录认证篇]]

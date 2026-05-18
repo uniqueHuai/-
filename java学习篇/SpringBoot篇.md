@@ -689,3 +689,7 @@ public class ConfigController {
 | **日志** | 生产环境关闭 DEBUG 日志 |
 | **连接池** | 合理配置 HikariCP 参数 |
 | **JVM 参数** | 根据吞吐量调优堆内存和 GC 策略 |
+
+---
+
+> **📖 学习路线**：[[README]] | **上一篇**：[[JVM篇]] | **下一篇**：选择 [[登录认证篇]] 或 [[SpringCloud篇]]
