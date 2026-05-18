@@ -5,7 +5,13 @@ Thumbs.db
 # Claudian AI 助手配置与历史会话（隐私数据，不应推送）
 .claudian/
 
-# Obsidian 工作区缓存与配置（每台机器不同）
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
+# Claude 代理配置（本地专用，不应推送）
+.claude/
+
+# Obsidian 配置（每台机器不同，不应推送）
+.obsidian/
+
+# 临时修复脚本，不应推送
+fix_github.ps1
+fix_for_github.py
 
