@@ -1,13 +1,21 @@
-# Obsidian
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache/
-.trash/
-
-# OS files
+# 系统文件
 Thumbs.db
 .DS_Store
 
-# Claude/Agent config (personal)
-.claude/
+# Claudian AI 助手配置与历史会话（隐私数据，不应推送）
 .claudian/
+
+# Claude 代理配置（本地专用，不应推送）
+.claude/
+
+# Obsidian：工作区文件每台机器不同，不推送
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+
+# 回收站
+.trash/
+
+# 临时修复脚本，不应推送
+fix_github.ps1
+fix_for_github.py
