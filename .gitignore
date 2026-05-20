@@ -1,0 +1,13 @@
+# Obsidian
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.trash/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Claude/Agent config (personal)
+.claude/
+.claudian/
